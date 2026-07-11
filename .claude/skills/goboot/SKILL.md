@@ -147,7 +147,7 @@ Errors are source-positioned with stable codes: `GOBANN*` (annotation), `GOBDI*`
 
 ## Extending with plugins
 
-Plugins are compile-time (no dynamic loading). Implement `plugin.Plugin` plus any of `AnnotationProvider` (register annotations), `Analyzer` (diagnostics), `Generator` (files), `DialectProvider` (a DB driver's placeholder style). See `plugin/exampleplugin` (all four capabilities, in-module) and `plugins/oracle` (a standalone module). Host them by listing the module in `goboot.yaml` (`goboot generate` self-bootstraps a plugin-aware CLI), or by building a small `main` calling `cli.Main(pluginA.New(), ...)`. Full guide: `PLUGINS.md`.
+Plugins are compile-time (no dynamic loading). Implement `plugin.Plugin` plus any of `AnnotationProvider` (register annotations), `Analyzer` (diagnostics), `Generator` (files), `DialectProvider` (a DB driver's placeholder style). See `plugin/exampleplugin` (all four capabilities, in-module), `plugins/oracle` (a `DialectProvider` module), and `plugins/openapi` (a `Generator` module emitting an OpenAPI 3 spec from the routes). Host them by listing the module in `goboot.yaml` (`goboot generate` self-bootstraps a plugin-aware CLI), or by building a small `main` calling `cli.Main(pluginA.New(), ...)`. Full guide: `PLUGINS.md`.
 
 ## When editing this framework's own source
 
