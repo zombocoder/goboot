@@ -228,11 +228,19 @@ func (p *parser) parseAnnotation(raw string) (*Annotation, *Diagnostic) {
 		Raw:       raw,
 	}
 
-	if p.stream.peek().Kind != tokLParen {
-		return ann, nil // marker annotation
+	if p.stream.peek().Kind == tokLParen {
+		if diag := p.parseArguments(ann); diag != nil {
+			return nil, diag
+		}
 	}
-	if diag := p.parseArguments(ann); diag != nil {
-		return nil, diag
+
+	// An annotation must be the entire comment content (§37.4): a bare marker,
+	// or a name plus its balanced argument list, and nothing else. Trailing
+	// prose means this @Name is a documentation mention — for example a comment
+	// that wraps so "the @Transactional method ..." starts a line — not an
+	// annotation. Skip it silently rather than emitting a spurious marker.
+	if p.stream.peek().Kind != tokEOF {
+		return nil, nil
 	}
 	return ann, nil
 }

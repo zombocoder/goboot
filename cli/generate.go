@@ -50,6 +50,21 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 	strictMode := *strict || cfg.Generation.Strict
 	cleanFirst := *clean || cfg.Generation.Clean
 
+	// Remove prior goboot output *before* loading the packages, so stale
+	// generated code — for example after a breaking interface change — cannot
+	// fail the type-check and block its own regeneration. Only files carrying
+	// the goboot marker are removed; hand-written files and non-marker plugin
+	// artifacts (e.g. an OpenAPI JSON) are left in place.
+	absOut := filepath.Join(*dir, outputDir)
+	if cleanFirst {
+		if err := cleanDir(absOut); err != nil {
+			fmt.Fprintf(stderr, "goboot: %v\n", err)
+			return 1
+		}
+	} else {
+		removeGeneratedFile(filepath.Join(absOut, generatedFileName))
+	}
+
 	res, host, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, conditionOptions(*profile, *property), stderr)
 	if res == nil {
 		return 1
@@ -79,13 +94,6 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	absOut := filepath.Join(*dir, outputDir)
-	if cleanFirst {
-		if err := cleanDir(absOut); err != nil {
-			fmt.Fprintf(stderr, "goboot: %v\n", err)
-			return 1
-		}
-	}
 	if err := os.MkdirAll(absOut, 0o755); err != nil {
 		fmt.Fprintf(stderr, "goboot: creating output directory: %v\n", err)
 		return 1

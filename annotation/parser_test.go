@@ -33,6 +33,34 @@ func TestParseMarker(t *testing.T) {
 	}
 }
 
+// TestProseMentionIsNotAnnotation guards the fix for a comment that wraps so an
+// annotation name begins a line but is followed by prose — it must not be parsed
+// as an annotation (§37.4).
+func TestProseMentionIsNotAnnotation(t *testing.T) {
+	skipped := []string{
+		"@Transactional method runs inside a database transaction.",
+		"@Service is the annotation you want here",
+		"@GetMapping(path=\"/x\") returns a widget",
+		"@Deprecated: use the other API",
+	}
+	for _, text := range skipped {
+		anns, diags := ParseComment(text, basePos())
+		if len(anns) != 0 {
+			t.Errorf("prose %q should yield no annotations, got %d", text, len(anns))
+		}
+		if len(diags) != 0 {
+			t.Errorf("prose %q should be silent, got diagnostics %v", text, diags)
+		}
+	}
+
+	// The clean forms are still parsed.
+	for _, text := range []string{"@Transactional", "@Service(name=\"x\")"} {
+		if anns, _ := ParseComment(text, basePos()); len(anns) != 1 {
+			t.Errorf("standalone %q should parse to 1 annotation, got %d", text, len(anns))
+		}
+	}
+}
+
 func TestParseNamedArguments(t *testing.T) {
 	ann := parseSingle(t, `@Service(name="userService", scope="singleton")`)
 	if got, _ := AsString(ann.Arguments["name"]); got != "userService" {

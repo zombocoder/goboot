@@ -89,6 +89,14 @@ func cleanTree(root string) ([]string, error) {
 	return removed, err
 }
 
+// removeGeneratedFile removes path only if it is a goboot-generated file, so a
+// hand-written file at that path is never deleted.
+func removeGeneratedFile(path string) {
+	if isGeneratedFile(path) {
+		_ = os.Remove(path)
+	}
+}
+
 // isGeneratedFile reports whether a file is a goboot-generated Go file: it must
 // have the generated-file prefix and contain the generated marker.
 func isGeneratedFile(path string) bool {
