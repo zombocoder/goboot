@@ -57,12 +57,15 @@ func renderProxyType(proxy, target *model.Component, iface *types.Interface, im 
 	fmt.Fprintf(&b, "\tauthorizer  %s\n", rt("Authorizer"))
 	fmt.Fprintf(&b, "\tlogger      %s\n", rt("MethodLogger"))
 	fmt.Fprintf(&b, "\taudit       %s\n", rt("AuditSink"))
+	fmt.Fprintf(&b, "\tbreakers     %s\n", rt("CircuitBreakerProvider"))
+	fmt.Fprintf(&b, "\trateLimiters %s\n", rt("RateLimiterProvider"))
+	fmt.Fprintf(&b, "\tbulkheads    %s\n", rt("BulkheadProvider"))
 	b.WriteString("}\n\n")
 
 	// Constructor.
 	fmt.Fprintf(&b, "// New%s builds the %s.\n", proxyName, proxyName)
 	fmt.Fprintf(&b, "func New%s(target %s, deps %s) *%s {\n", proxyName, targetType, rt("ProxyDependencies"), proxyName)
-	fmt.Fprintf(&b, "\treturn &%s{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit}\n", proxyName)
+	fmt.Fprintf(&b, "\treturn &%s{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit, breakers: deps.Breakers, rateLimiters: deps.RateLimiters, bulkheads: deps.Bulkheads}\n", proxyName)
 	b.WriteString("}\n\n")
 
 	// Methods, in the interface's (name-sorted) order for deterministic output.
@@ -129,15 +132,20 @@ func renderInterceptedMethod(proxyName, targetTypeName, name string, sig *types.
 		fmt.Fprintf(&b, "\tdefer func() { p.audit.Record(%s, %s, err) }()\n", ctxVar, renderAuditEvent(opName, m.Audit, rt))
 	}
 
-	// Authorization gates the call; a rejection skips the core and is recorded by
-	// metrics like any other failure (§25, §34).
-	core := renderCore(name, ctxVar, ctxType, restArgs, valueNames, m, rt)
-	if m.Authorize != nil {
+	// Resilience gates (bulkhead → circuit breaker → rate limit) wrap the whole
+	// guarded unit; when present, the authorize check and core run inside a
+	// closure so a rejected gate short-circuits before the target (§36.3–§36.5).
+	if m.CircuitBreaker != nil || m.RateLimit != nil || m.Bulkhead != nil {
+		fmt.Fprintf(&b, "\terr = %s\n", renderGatedCore(name, ctxVar, ctxType, restArgs, valueNames, m, rt))
+	} else if m.Authorize != nil {
+		// Authorization gates the call; a rejection skips the core and is recorded
+		// by metrics like any other failure (§25, §34).
+		core := renderCore(name, ctxVar, ctxType, restArgs, valueNames, m, rt)
 		fmt.Fprintf(&b, "\tif err = p.authorizer.Authorize(%s, %s); err == nil {\n", ctxVar, renderAuthRequest(m.Authorize, rt))
 		b.WriteString(core)
 		b.WriteString("\t}\n")
 	} else {
-		b.WriteString(core)
+		b.WriteString(renderCore(name, ctxVar, ctxType, restArgs, valueNames, m, rt))
 	}
 
 	// Metrics record the final outcome (§35.2).
@@ -192,6 +200,122 @@ func renderCore(method, ctxVar, ctxType, restArgs string, valueNames []string, m
 		}
 		return fmt.Sprintf("\t%s, err = %s\n", strings.Join(valueNames, ", "), call)
 	}
+}
+
+// renderGatedCore renders the resilience-gated invocation as a single
+// error-valued expression: bulkhead(circuitBreaker(rateLimit(guarded))), where
+// guarded is a closure running the authorize check, retry, transaction, and
+// target (§36.3–§36.5). Formatting is normalized by go/format afterward.
+func renderGatedCore(method, ctxVar, ctxType, restArgs string, valueNames []string, m model.InterceptedMethod, rt func(string) string) string {
+	guarded := "func(ctx " + ctxType + ") error {\n" + renderGuardedBody("ctx", method, ctxType, restArgs, valueNames, m, rt) + "\n}"
+
+	// Gate wrappers, inner (nearest the target) to outer.
+	type gate struct{ expr string }
+	var gates []gate
+	if m.RateLimit != nil {
+		gates = append(gates, gate{"p.rateLimiters.RateLimiter(" + renderRateLimitSpec(m.RateLimit, rt) + ")"})
+	}
+	if m.CircuitBreaker != nil {
+		gates = append(gates, gate{"p.breakers.CircuitBreaker(" + renderCircuitBreakerSpec(m.CircuitBreaker, rt) + ")"})
+	}
+	if m.Bulkhead != nil {
+		gates = append(gates, gate{"p.bulkheads.Bulkhead(" + renderBulkheadSpec(m.Bulkhead, rt) + ")"})
+	}
+
+	expr := ""
+	for i, g := range gates {
+		ctxArg := "ctx"
+		if i == len(gates)-1 {
+			ctxArg = ctxVar
+		}
+		var inner string
+		if i == 0 {
+			inner = guarded
+		} else {
+			inner = "func(ctx " + ctxType + ") error { return " + expr + " }"
+		}
+		expr = g.expr + ".Execute(" + ctxArg + ", " + inner + ")"
+	}
+	return expr
+}
+
+// renderGuardedBody renders the closure body (returning error) that runs the
+// authorize check and the target invocation for the gated path.
+func renderGuardedBody(ctxParam, method, ctxType, restArgs string, valueNames []string, m model.InterceptedMethod, rt func(string) string) string {
+	targetReturn := func(ctxP string) string {
+		call := fmt.Sprintf("p.target.%s(%s)", method, joinCtxArgs(ctxP, restArgs))
+		if len(valueNames) == 0 {
+			return "return " + call
+		}
+		return fmt.Sprintf("var e error\n%s, e = %s\nreturn e", strings.Join(valueNames, ", "), call)
+	}
+	txReturn := func(ctxArg string) string {
+		return fmt.Sprintf("return p.transaction.WithinTransaction(%s, %s, func(ctx %s) error {\n%s\n})",
+			ctxArg, renderTxOptions(m.Tx, rt), ctxType, targetReturn("ctx"))
+	}
+
+	var work string
+	switch {
+	case m.Retry != nil:
+		inner := targetReturn("ctx")
+		if m.Transactional {
+			inner = txReturn("ctx")
+		}
+		work = fmt.Sprintf("return %s(%s, %s, func(ctx %s) error {\n%s\n})",
+			rt("Retry"), ctxParam, renderRetryPolicy(m.Retry, rt), ctxType, inner)
+	case m.Transactional:
+		work = txReturn(ctxParam)
+	default:
+		work = targetReturn(ctxParam)
+	}
+
+	if m.Authorize != nil {
+		return fmt.Sprintf("if err := p.authorizer.Authorize(%s, %s); err != nil {\nreturn err\n}\n%s",
+			ctxParam, renderAuthRequest(m.Authorize, rt), work)
+	}
+	return work
+}
+
+// renderCircuitBreakerSpec renders a runtime.CircuitBreakerSpec literal (§36.3).
+func renderCircuitBreakerSpec(s *model.CircuitBreakerSpec, rt func(string) string) string {
+	fields := []string{"Name: " + strconv.Quote(s.Name)}
+	if s.FailureThreshold != 0 {
+		fields = append(fields, fmt.Sprintf("FailureThreshold: %d", s.FailureThreshold))
+	}
+	if s.ResetTimeout != 0 {
+		fields = append(fields, fmt.Sprintf("ResetTimeout: %d", int64(s.ResetTimeout)))
+	}
+	if s.HalfOpenMax != 0 {
+		fields = append(fields, fmt.Sprintf("HalfOpenMax: %d", s.HalfOpenMax))
+	}
+	return rt("CircuitBreakerSpec") + "{" + strings.Join(fields, ", ") + "}"
+}
+
+// renderRateLimitSpec renders a runtime.RateLimitSpec literal (§36.4).
+func renderRateLimitSpec(s *model.RateLimitSpec, rt func(string) string) string {
+	fields := []string{"Name: " + strconv.Quote(s.Name)}
+	if s.Limit != 0 {
+		fields = append(fields, fmt.Sprintf("Limit: %d", s.Limit))
+	}
+	if s.Period != 0 {
+		fields = append(fields, fmt.Sprintf("Period: %d", int64(s.Period)))
+	}
+	if s.Burst != 0 {
+		fields = append(fields, fmt.Sprintf("Burst: %d", s.Burst))
+	}
+	return rt("RateLimitSpec") + "{" + strings.Join(fields, ", ") + "}"
+}
+
+// renderBulkheadSpec renders a runtime.BulkheadSpec literal (§36.5).
+func renderBulkheadSpec(s *model.BulkheadSpec, rt func(string) string) string {
+	fields := []string{"Name: " + strconv.Quote(s.Name)}
+	if s.MaxConcurrent != 0 {
+		fields = append(fields, fmt.Sprintf("MaxConcurrent: %d", s.MaxConcurrent))
+	}
+	if s.MaxWait != 0 {
+		fields = append(fields, fmt.Sprintf("MaxWait: %d", int64(s.MaxWait)))
+	}
+	return rt("BulkheadSpec") + "{" + strings.Join(fields, ", ") + "}"
 }
 
 // renderAuthRequest renders a runtime.AuthorizationRequest literal (§34.2).

@@ -27,18 +27,21 @@ func buildComponents(proxyDeps runtime.ProxyDependencies) (*Components, error) {
 
 // VaultServiceProxy is the generated interception proxy for VaultService.
 type VaultServiceProxy struct {
-	target      *obsapp.VaultService
-	transaction runtime.TransactionManager
-	tracer      runtime.Tracer
-	metrics     runtime.MethodMetrics
-	authorizer  runtime.Authorizer
-	logger      runtime.MethodLogger
-	audit       runtime.AuditSink
+	target       *obsapp.VaultService
+	transaction  runtime.TransactionManager
+	tracer       runtime.Tracer
+	metrics      runtime.MethodMetrics
+	authorizer   runtime.Authorizer
+	logger       runtime.MethodLogger
+	audit        runtime.AuditSink
+	breakers     runtime.CircuitBreakerProvider
+	rateLimiters runtime.RateLimiterProvider
+	bulkheads    runtime.BulkheadProvider
 }
 
 // NewVaultServiceProxy builds the VaultServiceProxy.
 func NewVaultServiceProxy(target *obsapp.VaultService, deps runtime.ProxyDependencies) *VaultServiceProxy {
-	return &VaultServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit}
+	return &VaultServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit, breakers: deps.Breakers, rateLimiters: deps.RateLimiters, bulkheads: deps.Bulkheads}
 }
 
 func (p *VaultServiceProxy) Rotate(a0 context.Context) (r0 string, err error) {

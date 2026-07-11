@@ -327,7 +327,7 @@ func TestAuthE2EWiringUpToDate(t *testing.T) {
 	for _, want := range []string{
 		`p.authorizer.Authorize(a0, runtime.AuthorizationRequest{Roles: []string{"admin"}, Mode: runtime.AuthorizationModeAll})`,
 		`Roles: []string{"reader"}`,
-		"authorizer  runtime.Authorizer",
+		"authorizer   runtime.Authorizer",
 	} {
 		if !strings.Contains(src, want) {
 			t.Errorf("generated auth wiring missing %q", want)
@@ -391,8 +391,8 @@ func TestObsE2EWiringUpToDate(t *testing.T) {
 		`logDone := p.logger.Log(a0, "VaultService.Store", "debug")`,
 		"defer func() { logDone(err) }()",
 		`p.audit.Record(a0, runtime.AuditEvent{Method: "VaultService.Store", Action: "store", Resource: "secret"}, err)`,
-		"logger      runtime.MethodLogger",
-		"audit       runtime.AuditSink",
+		"logger       runtime.MethodLogger",
+		"audit        runtime.AuditSink",
 	} {
 		if !strings.Contains(src, want) {
 			t.Errorf("generated observability wiring missing %q", want)
@@ -405,6 +405,41 @@ func TestObsE2EWiringUpToDate(t *testing.T) {
 	}
 	if src != string(committed) {
 		t.Errorf("internal/obse2e/wiring.gen.go is stale; regenerate it from the obsapp example")
+	}
+}
+
+// TestGateE2EWiringUpToDate guards the committed resilience-gate wiring and
+// asserts the @CircuitBreaker/@RateLimit/@Bulkhead interceptors are rendered.
+func TestGateE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/gateapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	src, err := Generate(res.App, res.Graph, Options{Package: "gatee2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		`p.breakers.CircuitBreaker(runtime.CircuitBreakerSpec{Name: "downstream", FailureThreshold: 2, ResetTimeout: 50000000})`,
+		`p.rateLimiters.RateLimiter(runtime.RateLimitSpec{Name: "DownstreamService.Fetch", Limit: 2, Period: 1000000000})`,
+		`p.bulkheads.Bulkhead(runtime.BulkheadSpec{Name: "DownstreamService.Bounded", MaxConcurrent: 1})`,
+		"breakers     runtime.CircuitBreakerProvider",
+		"rateLimiters runtime.RateLimiterProvider",
+		"bulkheads    runtime.BulkheadProvider",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated gate wiring missing %q", want)
+		}
+	}
+	path := filepath.Join("..", "..", "internal", "gatee2e", "wiring.gen.go")
+	committed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/gatee2e/wiring.gen.go is stale; regenerate it from the gateapp example")
 	}
 }
 
