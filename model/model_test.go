@@ -6,11 +6,11 @@ func TestComponentIDConstructors(t *testing.T) {
 	if got := NewComponentID("pkg/x", "Foo"); got != "pkg/x:Foo" {
 		t.Errorf("NewComponentID = %q", got)
 	}
-	if got := NewBeanID("pkg/x", "Provide", "myBean"); got != "pkg/x:Provide#myBean" {
-		t.Errorf("NewBeanID = %q", got)
+	if got := NewNutID("pkg/x", "Provide", "myNut"); got != "pkg/x:Provide#myNut" {
+		t.Errorf("NewNutID = %q", got)
 	}
-	if got := NewBeanID("pkg/x", "Provide", ""); got != "pkg/x:Provide" {
-		t.Errorf("NewBeanID (no name) = %q", got)
+	if got := NewNutID("pkg/x", "Provide", ""); got != "pkg/x:Provide" {
+		t.Errorf("NewNutID (no name) = %q", got)
 	}
 }
 
@@ -24,7 +24,7 @@ func TestScopeAndKindStrings(t *testing.T) {
 	kinds := map[ComponentKind]string{
 		ComponentGeneric: "component", ComponentService: "service",
 		ComponentRepository: "repository", ComponentController: "controller",
-		ComponentConfiguration: "configuration", ComponentBean: "bean",
+		ComponentConfiguration: "configuration", ComponentNut: "nut",
 		ComponentAdvice: "advice", ComponentKind(99): "unknown",
 	}
 	for k, want := range kinds {

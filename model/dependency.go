@@ -5,7 +5,7 @@ import (
 	"go/types"
 )
 
-// Dependency is a single requirement of a constructor or bean provider (§14.2).
+// Dependency is a single requirement of a constructor or nut provider (§14.2).
 // Before resolution only the syntactic fields are set; the resolver fills
 // ResolvedTo.
 type Dependency struct {

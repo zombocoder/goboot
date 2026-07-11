@@ -2,7 +2,7 @@ package model
 
 // ComponentID stably identifies a component across builds (§12.3). The format
 // is "<package-import-path>:<type-or-function-name>" for ordinary components,
-// with a "#<bean-name>" suffix for named bean providers, e.g.
+// with a "#<nut-name>" suffix for named nut providers, e.g.
 //
 //	github.com/acme/users/internal/service:UserService
 //	github.com/acme/users/internal/config:ProvideDatabase#primaryDatabase
@@ -16,11 +16,11 @@ func NewComponentID(pkgPath, name string) ComponentID {
 	return ComponentID(pkgPath + ":" + name)
 }
 
-// NewBeanID builds an ID for a named bean provider.
-func NewBeanID(pkgPath, funcName, beanName string) ComponentID {
+// NewNutID builds an ID for a named nut provider.
+func NewNutID(pkgPath, funcName, nutName string) ComponentID {
 	id := pkgPath + ":" + funcName
-	if beanName != "" {
-		id += "#" + beanName
+	if nutName != "" {
+		id += "#" + nutName
 	}
 	return ComponentID(id)
 }

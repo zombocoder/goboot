@@ -47,7 +47,7 @@ func TestAnalyzeDiscoversComponents(t *testing.T) {
 		"userRepository": model.ComponentRepository,
 		"UserController": model.ComponentController,
 		"Config":         model.ComponentConfiguration,
-		"idGenerator":    model.ComponentBean,
+		"idGenerator":    model.ComponentNut,
 	}
 	for name, kind := range want {
 		c := componentByName(res.App, name)

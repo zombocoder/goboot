@@ -49,11 +49,11 @@ func lookupConstructor(tn *types.TypeName) *types.Func {
 	return fn
 }
 
-// buildConstructor validates a constructor or bean function signature and
+// buildConstructor validates a constructor or nut function signature and
 // converts it into a model.Constructor. It returns diagnostics for unsupported
 // signatures (§13.4); when a fatal signature error is found it returns a nil
 // constructor.
-func buildConstructor(fn *types.Func, isBean bool, fset *token.FileSet) (*model.Constructor, []*annotation.Diagnostic) {
+func buildConstructor(fn *types.Func, isNut bool, fset *token.FileSet) (*model.Constructor, []*annotation.Diagnostic) {
 	sig, ok := fn.Type().(*types.Signature)
 	if !ok {
 		return nil, nil
@@ -91,7 +91,7 @@ func buildConstructor(fn *types.Func, isBean bool, fset *token.FileSet) (*model.
 		FuncName:     fn.Name(),
 		ReturnType:   results.At(0).Type(),
 		ReturnsError: results.Len() == 2,
-		IsBean:       isBean,
+		IsNut:        isNut,
 		Position:     pos,
 	}
 	ctor.Params = paramsToDeps(sig.Params(), fset)
