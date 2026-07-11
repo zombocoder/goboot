@@ -41,6 +41,7 @@ CLI: `generate`, `validate` (analyze, no write), `graph --format mermaid|dot|jso
 - **Constructor**: `func NewXxx(deps...) *Xxx` or `(*Xxx, error)`; may return an interface. Reject >2 returns or a non-`error` second return.
 - **HTTP handler**: `func(ctx context.Context, req Request) (*Response, error)` (also `(ctx) (Response, error)`, `(ctx, req) error`, `(ctx) error`). First param must be `context.Context`.
 - **Lifecycle / Scheduled hook**: `func()`, `func() error`, `func(context.Context)`, or `func(context.Context) error`.
+- **`@ExceptionHandler`** (on a `@ControllerAdvice`): `func(ctx context.Context, err *T) (*Response, error)` (response form — writes the body with `@ResponseStatus`, default 500) or `func(ctx, err *T) error` (transform form — the returned error is rendered as a Problem by the delegate). The caught type is the second parameter (matched via `errors.As`); `err error` makes it a catch-all, tried after all concrete handlers.
 - **Intercepted service method** (@Transactional/@Traced/@Timed/@Retry/@Timeout/@Authorize/@Logged/@Audit/@CircuitBreaker/@RateLimit/@Bulkhead): first param `context.Context`, last result `error`.
 - **Request binding tags**: `path:"id"`, `query:"expand"`, `header:"X-Request-ID"`, `cookie:"c"`, `json:"name"`.
 - **Config tags**: `config:"host" default:"0.0.0.0"` (and `required:"true"`).
@@ -74,8 +75,8 @@ Status: ✅ implemented · 🚧 planned (parse/generate not yet wired).
 | `@PutMapping` / `@PatchMapping` / `@DeleteMapping`   | method              | same                                                        | a route + handler proxy for that verb (defaults: PUT/PATCH 200, DELETE 204 no-body) | ✅  |
 | `@Response`                                         | method (repeatable) | `status`, `type`, `error`, `contentType`                    | response/status metadata; overrides default status             | ✅              |
 | `@ResponseStatus`                                   | method              | positional int                                              | success status                                                 | ✅              |
-| `@ControllerAdvice`                                 | struct              | —                                                           | advice component                                               | ✅ (discovered) |
-| `@ExceptionHandler`                                 | method              | `type` (req)                                                | error dispatch                                                 | 🚧              |
+| `@ControllerAdvice`                                 | struct              | —                                                           | advice component holding `@ExceptionHandler` methods           | ✅              |
+| `@ExceptionHandler`                                 | method              | `type` (optional; caught type is read from the 2nd param)   | typed error→response dispatch (see below)                      | ✅              |
 | `@Consumes`/`@Produces`                             | method              | —                                                           | media-type constraints                                         | 🚧              |
 
 ### Configuration & lifecycle

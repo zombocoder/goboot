@@ -152,7 +152,32 @@ type Component struct {
 	PreDestroy *LifecycleMethod
 	// Scheduled lists the component's @Scheduled methods, in declaration order.
 	Scheduled []ScheduledMethod
+	// ExceptionHandlers lists the @ExceptionHandler methods on a
+	// @ControllerAdvice component (§20), in declaration order.
+	ExceptionHandlers []ExceptionHandler
 	// Position is the source location of the component declaration.
+	Position token.Position
+}
+
+// ExceptionHandler is an @ExceptionHandler method on a @ControllerAdvice (§20).
+// The generator dispatches a controller error to the first handler whose caught
+// type matches (via errors.As), converting the result into a response.
+type ExceptionHandler struct {
+	// MethodName is the advice method to invoke.
+	MethodName string
+	// ErrType is the caught error type: the method's second parameter type. Used
+	// to declare the errors.As target; matching is decided by go/types.
+	ErrType types.Type
+	// CatchAll reports that ErrType is the error interface, so the handler
+	// matches any error and is tried after all concrete handlers.
+	CatchAll bool
+	// ResponseType is the handler's response value type, or nil when it returns
+	// only an error (the transform form, whose result the delegate renders).
+	ResponseType types.Type
+	// SuccessStatus is the status written when the handler returns a response
+	// body; from @ResponseStatus or the 500 default.
+	SuccessStatus int
+	// Position is the source location of the handler method.
 	Position token.Position
 }
 

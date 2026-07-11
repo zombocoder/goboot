@@ -477,6 +477,40 @@ func TestVerbE2EWiringUpToDate(t *testing.T) {
 	}
 }
 
+// TestAdviceE2EWiringUpToDate guards the committed @ControllerAdvice wiring and
+// asserts the @ExceptionHandler dispatcher is rendered.
+func TestAdviceE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/adviceapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	src, err := Generate(res.App, res.Graph, Options{Package: "advicee2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		"deps.ErrorHandler = newExceptionDispatcher(components, deps)",
+		"var e1 *adviceapp.NotFoundError",
+		"d.writer.Write(ctx, w, 404, response)",
+		"d.components.Advice.HandleConflict(ctx, e0)",
+		"d.delegate.Handle(ctx, w, r, d.components.Advice.HandleAny(ctx, err))",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated advice wiring missing %q", want)
+		}
+	}
+	path := filepath.Join("..", "..", "internal", "advicee2e", "wiring.gen.go")
+	committed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/advicee2e/wiring.gen.go is stale; regenerate it from the adviceapp example")
+	}
+}
+
 // TestProxyE2EWiringUpToDate guards the committed service-proxy integration
 // wiring against the generator and asserts the proxy sections are present.
 func TestProxyE2EWiringUpToDate(t *testing.T) {
