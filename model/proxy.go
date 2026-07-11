@@ -21,6 +21,20 @@ type InterceptedMethod struct {
 	// Transactional requests a transaction wrapper (§26); Tx holds its options.
 	Transactional bool
 	Tx            TxOptions
+
+	// Timeout, when > 0, wraps the call in a context with this timeout (§36.2).
+	Timeout time.Duration
+	// Retry, when non-nil, retries the call on error per the policy (§36.1).
+	Retry *RetryPolicy
+}
+
+// RetryPolicy mirrors the @Retry arguments (§36.1) for the generator to render
+// into a runtime.RetryPolicy literal.
+type RetryPolicy struct {
+	MaxAttempts int
+	Delay       time.Duration
+	Multiplier  float64
+	MaxDelay    time.Duration
 }
 
 // TxOptions mirrors the @Transactional arguments (§26.1) in a form the generator
@@ -34,5 +48,5 @@ type TxOptions struct {
 
 // Intercepts reports whether the method requests any interception.
 func (m InterceptedMethod) Intercepts() bool {
-	return m.Traced || m.Timed || m.Transactional
+	return m.Traced || m.Timed || m.Transactional || m.Timeout > 0 || m.Retry != nil
 }

@@ -219,6 +219,17 @@ func coreDefinitions() []*Definition {
 		{Name: "Timed", Targets: []Target{TargetMethod, TargetType},
 			Arguments: map[string]ArgumentDefinition{"name": arg(ArgString)}},
 
+		// ---- Resilience -------------------------------------------------
+		{Name: "Timeout", Targets: []Target{TargetMethod, TargetType},
+			Positional: &ArgumentDefinition{Type: ArgDuration, Required: true}},
+		{Name: "Retry", Targets: []Target{TargetMethod, TargetType},
+			Arguments: map[string]ArgumentDefinition{
+				"maxAttempts": arg(ArgInteger),
+				"delay":       arg(ArgDuration),
+				"multiplier":  arg(ArgFloat),
+				"maxDelay":    arg(ArgDuration),
+			}},
+
 		// ---- Repository queries -----------------------------------------
 		{Name: "Query", Targets: []Target{TargetMethod},
 			Positional: &ArgumentDefinition{Type: ArgString},
