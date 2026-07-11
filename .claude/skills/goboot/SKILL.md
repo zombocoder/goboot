@@ -49,6 +49,8 @@ CLI: `generate`, `validate` (analyze, no write), `graph --format mermaid|dot|jso
 
 Status: ✅ implemented · 🚧 planned (parse/generate not yet wired).
 
+**Out of scope** (descoped — do not implement; the spec still mentions them but they are not on the roadmap): `@Qualifier`, `@Lazy`, `@Value`. Use `@Named`/`@Primary` for disambiguation and `@ConfigurationProperties` for config binding instead.
+
 ### Components & DI
 
 | Annotation       | Target      | Args                                                 | Generates                                                                          | Status |
@@ -61,8 +63,6 @@ Status: ✅ implemented · 🚧 planned (parse/generate not yet wired).
 | `@Primary`       | struct/func | —                                                    | preferred candidate when a dependency is ambiguous                                 | ✅     |
 | `@Named`         | struct/func | positional string                                    | a component name                                                                   | ✅     |
 | `@Scope`         | struct      | positional (singleton\|prototype)                    | component scope                                                                    | ✅     |
-| `@Qualifier`     | —           | —                                                    | qualifier-based resolution                                                         | 🚧     |
-| `@Lazy`          | struct      | —                                                    | lazy initialization                                                                | 🚧     |
 
 ### HTTP
 
@@ -85,7 +85,6 @@ Status: ✅ implemented · 🚧 planned (parse/generate not yet wired).
 | `@ConfigurationProperties` | struct | `prefix` (req) | a typed `Load<Type>` loader bound from YAML/env with defaults | ✅     |
 | `@PostConstruct`           | method | —              | startup hook (ordered)                                        | ✅     |
 | `@PreDestroy`              | method | —              | shutdown hook (reverse order)                                 | ✅     |
-| `@Value`                   | field  | —              | property injection into a field                               | 🚧     |
 
 ### Conditions & profiles
 
