@@ -9,10 +9,13 @@
 A Spring Boot–style developer experience that compiles down to plain, readable Go —
 no runtime reflection for DI, no classpath scanning.
 
+[![Docs](https://img.shields.io/badge/docs-zombocoder.github.io%2Fgoboot-00ADD8)](https://zombocoder.github.io/goboot/)
 [![Go Reference](https://pkg.go.dev/badge/github.com/zombocoder/goboot.svg)](https://pkg.go.dev/github.com/zombocoder/goboot)
 [![Release](https://img.shields.io/github/v/release/zombocoder/goboot?sort=semver)](https://github.com/zombocoder/goboot/releases)
 [![Go 1.25](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
+📖 **[Documentation](https://zombocoder.github.io/goboot/)** — developer guide & annotation reference.
 
 </div>
 
