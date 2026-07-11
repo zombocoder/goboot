@@ -1,0 +1,5 @@
+test/**
+testdata/**
+.vscodeignore
+**/.DS_Store
+**/*.map

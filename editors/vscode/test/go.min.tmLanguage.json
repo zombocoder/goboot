@@ -1,0 +1,7 @@
+{
+  "scopeName": "source.go",
+  "patterns": [
+    { "name": "comment.line.double-slash.go", "begin": "//", "end": "$" },
+    { "name": "comment.block.go", "begin": "/\\*", "end": "\\*/" }
+  ]
+}

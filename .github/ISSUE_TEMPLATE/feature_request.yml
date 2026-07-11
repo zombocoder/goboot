@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest an annotation, generator, or capability for goboot
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or pain point.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: >
+        How might this look? If it's a new annotation, show the annotation and
+        the Go code you'd expect it to generate.
+      render: go
+    validations:
+      required: true
+  - type: input
+    id: spec
+    attributes:
+      label: Related spec section
+      description: If this relates to implementation-plan.md, cite the section (e.g. §36).
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
