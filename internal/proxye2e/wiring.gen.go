@@ -44,10 +44,10 @@ func NewOrderServiceProxy(target *proxyapp.OrderService, deps runtime.ProxyDepen
 func (p *OrderServiceProxy) CreateOrder(a0 context.Context, a1 string) (r0 string, err error) {
 	a0, span := p.tracer.Begin(a0, "orders.create")
 	defer func() { span.End(err) }()
-	err = p.transaction.WithinTransaction(a0, runtime.TransactionOptions{}, func(a0 context.Context) error {
-		var txErr error
-		r0, txErr = p.target.CreateOrder(a0, a1)
-		return txErr
+	err = p.transaction.WithinTransaction(a0, runtime.TransactionOptions{}, func(ctx context.Context) error {
+		var e error
+		r0, e = p.target.CreateOrder(ctx, a1)
+		return e
 	})
 	if err != nil {
 		p.metrics.RecordFailure("orders.create")

@@ -91,36 +91,37 @@ func renderInterceptedMethod(proxyName, targetTypeName, name string, sig *types.
 	params, argNames := renderParamList(sig, im)
 	results, valueNames := renderNamedResults(sig, im)
 	opName := targetTypeName + "." + name
+	ctxType := im.qualify("context", "context", "Context")
 
 	ctxVar := "ctx0"
 	if len(argNames) > 0 {
 		ctxVar = argNames[0]
 	}
+	restArgs := callArgs(argNames[minInt(1, len(argNames)):], sig.Variadic())
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "func (p *%s) %s(%s) %s {\n", proxyName, name, params, results)
 
+	// Timeout is the outermost interceptor: it bounds the whole call (§25).
+	if m.Timeout > 0 {
+		fmt.Fprintf(&b, "\t%s, cancel := %s(%s, %d)\n", ctxVar, im.qualify("context", "context", "WithTimeout"), ctxVar, int64(m.Timeout))
+		b.WriteString("\tdefer cancel()\n")
+	}
+
+	// Tracing spans the whole call and observes the returned error (§35.1).
 	if m.Traced {
-		traceName := m.TraceName
-		if traceName == "" {
-			traceName = opName
-		}
+		traceName := orDefault(m.TraceName, opName)
 		fmt.Fprintf(&b, "\t%s, span := p.tracer.Begin(%s, %s)\n", ctxVar, ctxVar, strconv.Quote(traceName))
 		b.WriteString("\tdefer func() { span.End(err) }()\n")
 	}
 
-	targetCall := fmt.Sprintf("p.target.%s(%s)", name, callArgs(argNames, sig.Variadic()))
-	if m.Transactional {
-		b.WriteString(renderTransactionBlock(ctxVar, valueNames, targetCall, m.Tx, im, rt))
-	} else {
-		b.WriteString(renderDirectCall(valueNames, targetCall))
-	}
+	// Core: target invocation, wrapped in a transaction and/or retried. Retry is
+	// outside the transaction so each attempt gets its own (§25).
+	b.WriteString(renderCore(name, ctxVar, ctxType, restArgs, valueNames, m, rt))
 
+	// Metrics record the final outcome (§35.2).
 	if m.Timed {
-		metricName := m.MetricName
-		if metricName == "" {
-			metricName = opName
-		}
+		metricName := orDefault(m.MetricName, opName)
 		fmt.Fprintf(&b, "\tif err != nil {\n\t\tp.metrics.RecordFailure(%s)\n\t\treturn\n\t}\n", strconv.Quote(metricName))
 		fmt.Fprintf(&b, "\tp.metrics.RecordSuccess(%s)\n", strconv.Quote(metricName))
 	}
@@ -129,30 +130,95 @@ func renderInterceptedMethod(proxyName, targetTypeName, name string, sig *types.
 	return b.String()
 }
 
-// renderDirectCall assigns the target call's results to the named results.
-func renderDirectCall(valueNames []string, call string) string {
-	if len(valueNames) == 0 {
-		return fmt.Sprintf("\terr = %s\n", call)
+// renderCore emits the statement that assigns err from the (optionally retried,
+// optionally transactional) target invocation.
+func renderCore(method, ctxVar, ctxType, restArgs string, valueNames []string, m model.InterceptedMethod, rt func(string) string) string {
+	// The innermost work: a closure that invokes the target with its context,
+	// assigning the named results and returning the error.
+	targetBody := func(ctxParam string) string {
+		call := fmt.Sprintf("p.target.%s(%s)", method, joinCtxArgs(ctxParam, restArgs))
+		if len(valueNames) == 0 {
+			return fmt.Sprintf("return %s", call)
+		}
+		return fmt.Sprintf("var e error\n\t\t%s, e = %s\n\t\treturn e", strings.Join(valueNames, ", "), call)
 	}
-	return fmt.Sprintf("\t%s, err = %s\n", strings.Join(valueNames, ", "), call)
+
+	// transactional produces an error-valued expression that runs the target
+	// within a transaction; otherwise the target closure is used directly.
+	txExpr := func(ctxArg string) string {
+		opts := renderTxOptions(m.Tx, rt)
+		return fmt.Sprintf("p.transaction.WithinTransaction(%s, %s, func(ctx %s) error {\n\t\t%s\n\t})",
+			ctxArg, opts, ctxType, indentClosureBody(targetBody("ctx")))
+	}
+
+	switch {
+	case m.Retry != nil:
+		// Retry wraps the transaction (or the target) per attempt.
+		inner := func(ctxParam string) string {
+			if m.Transactional {
+				return "return " + txExpr(ctxParam)
+			}
+			return targetBody(ctxParam)
+		}
+		return fmt.Sprintf("\terr = %s(%s, %s, func(ctx %s) error {\n\t\t%s\n\t})\n",
+			rt("Retry"), ctxVar, renderRetryPolicy(m.Retry, rt), ctxType, indentClosureBody(inner("ctx")))
+	case m.Transactional:
+		return fmt.Sprintf("\terr = %s\n", txExpr(ctxVar))
+	default:
+		call := fmt.Sprintf("p.target.%s(%s)", method, joinCtxArgs(ctxVar, restArgs))
+		if len(valueNames) == 0 {
+			return fmt.Sprintf("\terr = %s\n", call)
+		}
+		return fmt.Sprintf("\t%s, err = %s\n", strings.Join(valueNames, ", "), call)
+	}
 }
 
-// renderTransactionBlock wraps the target call in a transaction (§26).
-func renderTransactionBlock(ctxVar string, valueNames []string, call string, tx model.TxOptions, im *imports, rt func(string) string) string {
-	opts := renderTxOptions(tx, rt)
-	ctxType := im.qualify("context", "context", "Context")
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "\terr = p.transaction.WithinTransaction(%s, %s, func(%s %s) error {\n", ctxVar, opts, ctxVar, ctxType)
-	if len(valueNames) == 0 {
-		fmt.Fprintf(&b, "\t\treturn %s\n", call)
-	} else {
-		b.WriteString("\t\tvar txErr error\n")
-		fmt.Fprintf(&b, "\t\t%s, txErr = %s\n", strings.Join(valueNames, ", "), call)
-		b.WriteString("\t\treturn txErr\n")
+// renderRetryPolicy renders a runtime.RetryPolicy literal, omitting zero fields.
+func renderRetryPolicy(p *model.RetryPolicy, rt func(string) string) string {
+	var fields []string
+	if p.MaxAttempts != 0 {
+		fields = append(fields, fmt.Sprintf("MaxAttempts: %d", p.MaxAttempts))
 	}
-	b.WriteString("\t})\n")
-	return b.String()
+	if p.Delay != 0 {
+		fields = append(fields, fmt.Sprintf("Delay: %d", int64(p.Delay)))
+	}
+	if p.Multiplier != 0 {
+		fields = append(fields, "Multiplier: "+strconv.FormatFloat(p.Multiplier, 'g', -1, 64))
+	}
+	if p.MaxDelay != 0 {
+		fields = append(fields, fmt.Sprintf("MaxDelay: %d", int64(p.MaxDelay)))
+	}
+	return rt("RetryPolicy") + "{" + strings.Join(fields, ", ") + "}"
+}
+
+// joinCtxArgs joins the context argument with the remaining arguments.
+func joinCtxArgs(ctxArg, restArgs string) string {
+	if restArgs == "" {
+		return ctxArg
+	}
+	return ctxArg + ", " + restArgs
+}
+
+// indentClosureBody re-indents a multi-line closure body by one extra tab so the
+// generated source is legible before gofmt normalizes it.
+func indentClosureBody(body string) string {
+	return strings.ReplaceAll(body, "\n\t\t", "\n\t\t\t")
+}
+
+// orDefault returns s, or def when s is empty.
+func orDefault(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
+}
+
+// minInt returns the smaller of a and b.
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // renderTxOptions renders a runtime.TransactionOptions literal, omitting default

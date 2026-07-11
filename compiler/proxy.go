@@ -29,7 +29,7 @@ const (
 )
 
 // interceptAnnotations are the method annotations that trigger proxying.
-var interceptAnnotations = []string{"Transactional", "Traced", "Timed"}
+var interceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry"}
 
 // resolveInterface looks up the interface named by @Service(implements=...) in
 // the service's package and returns its type.
@@ -175,7 +175,48 @@ func (a *analysis) interceptedMethod(decl *Declaration) (model.InterceptedMethod
 		m.Transactional = true
 		m.Tx = txOptions(ann)
 	}
+	if ann, ok := decl.Find("Timeout"); ok {
+		if v, ok := ann.Positional(); ok {
+			if s, ok := annotation.AsString(v); ok {
+				if d, err := time.ParseDuration(s); err == nil {
+					m.Timeout = d
+				}
+			}
+		}
+	}
+	if ann, ok := decl.Find("Retry"); ok {
+		m.Retry = retryPolicy(ann)
+	}
 	return m, true
+}
+
+// retryPolicy reads @Retry arguments into a model.RetryPolicy.
+func retryPolicy(ann annotation.Annotation) *model.RetryPolicy {
+	p := &model.RetryPolicy{MaxAttempts: 3}
+	if v, ok := ann.Arg("maxAttempts"); ok {
+		if iv, ok := v.(annotation.IntValue); ok {
+			p.MaxAttempts = int(iv.Val)
+		}
+	}
+	if s, ok := stringArgValue(ann, "delay"); ok {
+		if d, err := time.ParseDuration(s); err == nil {
+			p.Delay = d
+		}
+	}
+	if v, ok := ann.Arg("multiplier"); ok {
+		switch t := v.(type) {
+		case annotation.FloatValue:
+			p.Multiplier = t.Val
+		case annotation.IntValue:
+			p.Multiplier = float64(t.Val)
+		}
+	}
+	if s, ok := stringArgValue(ann, "maxDelay"); ok {
+		if d, err := time.ParseDuration(s); err == nil {
+			p.MaxDelay = d
+		}
+	}
+	return p
 }
 
 // txOptions reads @Transactional arguments into model.TxOptions.
