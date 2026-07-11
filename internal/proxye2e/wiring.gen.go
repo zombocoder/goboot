@@ -30,18 +30,21 @@ func buildComponents(proxyDeps runtime.ProxyDependencies) (*Components, error) {
 
 // OrderServiceProxy is the generated interception proxy for OrderService.
 type OrderServiceProxy struct {
-	target      *proxyapp.OrderService
-	transaction runtime.TransactionManager
-	tracer      runtime.Tracer
-	metrics     runtime.MethodMetrics
-	authorizer  runtime.Authorizer
-	logger      runtime.MethodLogger
-	audit       runtime.AuditSink
+	target       *proxyapp.OrderService
+	transaction  runtime.TransactionManager
+	tracer       runtime.Tracer
+	metrics      runtime.MethodMetrics
+	authorizer   runtime.Authorizer
+	logger       runtime.MethodLogger
+	audit        runtime.AuditSink
+	breakers     runtime.CircuitBreakerProvider
+	rateLimiters runtime.RateLimiterProvider
+	bulkheads    runtime.BulkheadProvider
 }
 
 // NewOrderServiceProxy builds the OrderServiceProxy.
 func NewOrderServiceProxy(target *proxyapp.OrderService, deps runtime.ProxyDependencies) *OrderServiceProxy {
-	return &OrderServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit}
+	return &OrderServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit, breakers: deps.Breakers, rateLimiters: deps.RateLimiters, bulkheads: deps.Bulkheads}
 }
 
 func (p *OrderServiceProxy) CreateOrder(a0 context.Context, a1 string) (r0 string, err error) {

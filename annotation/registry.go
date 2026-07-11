@@ -248,6 +248,26 @@ func coreDefinitions() []*Definition {
 				"multiplier":  arg(ArgFloat),
 				"maxDelay":    arg(ArgDuration),
 			}},
+		{Name: "CircuitBreaker", Targets: []Target{TargetMethod, TargetType},
+			Arguments: map[string]ArgumentDefinition{
+				"name":             arg(ArgString),
+				"failureThreshold": arg(ArgInteger),
+				"resetTimeout":     arg(ArgDuration),
+				"halfOpenMax":      arg(ArgInteger),
+			}},
+		{Name: "RateLimit", Targets: []Target{TargetMethod, TargetType},
+			Arguments: map[string]ArgumentDefinition{
+				"name":   arg(ArgString),
+				"limit":  arg(ArgInteger),
+				"period": arg(ArgDuration),
+				"burst":  arg(ArgInteger),
+			}},
+		{Name: "Bulkhead", Targets: []Target{TargetMethod, TargetType},
+			Arguments: map[string]ArgumentDefinition{
+				"name":          arg(ArgString),
+				"maxConcurrent": arg(ArgInteger),
+				"maxWait":       arg(ArgDuration),
+			}},
 
 		// ---- Repository queries -----------------------------------------
 		{Name: "Query", Targets: []Target{TargetMethod},

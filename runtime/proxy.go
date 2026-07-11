@@ -50,6 +50,9 @@ type ProxyDependencies struct {
 	Authorizer   Authorizer
 	Logger       MethodLogger
 	Audit        AuditSink
+	Breakers     CircuitBreakerProvider
+	RateLimiters RateLimiterProvider
+	Bulkheads    BulkheadProvider
 }
 
 // DefaultProxyDependencies returns proxy dependencies wired with the built-in
@@ -62,5 +65,8 @@ func DefaultProxyDependencies() ProxyDependencies {
 		Authorizer:   PermitAllAuthorizer{},
 		Logger:       NoopLogger{},
 		Audit:        NoopAuditSink{},
+		Breakers:     NewCircuitBreakerRegistry(),
+		RateLimiters: NewRateLimiterRegistry(),
+		Bulkheads:    NewBulkheadRegistry(),
 	}
 }

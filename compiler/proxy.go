@@ -29,7 +29,7 @@ const (
 )
 
 // interceptAnnotations are the method annotations that trigger proxying.
-var interceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry", "Authorize", "RolesAllowed", "Logged", "Audit"}
+var interceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry", "Authorize", "RolesAllowed", "Logged", "Audit", "CircuitBreaker", "RateLimit", "Bulkhead"}
 
 // resolveInterface looks up the interface named by @Service(implements=...) in
 // the service's package and returns its type.
@@ -204,6 +204,54 @@ func (a *analysis) interceptedMethod(decl *Declaration) (model.InterceptedMethod
 			spec.Resource = s
 		}
 		m.Audit = spec
+	}
+	// Resilience gates default their registry key to Type.Method so distinct
+	// methods get distinct instances unless they share an explicit name.
+	defaultName := decl.Recv.Name() + "." + decl.Name
+	if ann, ok := decl.Find("CircuitBreaker"); ok {
+		spec := &model.CircuitBreakerSpec{Name: defaultName}
+		if s, ok := stringArgValue(ann, "name"); ok {
+			spec.Name = s
+		}
+		if n, ok := intArg(decl, "CircuitBreaker", "failureThreshold"); ok {
+			spec.FailureThreshold = n
+		}
+		if d, ok := durationArg(ann, "resetTimeout", time.Second); ok {
+			spec.ResetTimeout = d
+		}
+		if n, ok := intArg(decl, "CircuitBreaker", "halfOpenMax"); ok {
+			spec.HalfOpenMax = n
+		}
+		m.CircuitBreaker = spec
+	}
+	if ann, ok := decl.Find("RateLimit"); ok {
+		spec := &model.RateLimitSpec{Name: defaultName}
+		if s, ok := stringArgValue(ann, "name"); ok {
+			spec.Name = s
+		}
+		if n, ok := intArg(decl, "RateLimit", "limit"); ok {
+			spec.Limit = n
+		}
+		if d, ok := durationArg(ann, "period", time.Second); ok {
+			spec.Period = d
+		}
+		if n, ok := intArg(decl, "RateLimit", "burst"); ok {
+			spec.Burst = n
+		}
+		m.RateLimit = spec
+	}
+	if ann, ok := decl.Find("Bulkhead"); ok {
+		spec := &model.BulkheadSpec{Name: defaultName}
+		if s, ok := stringArgValue(ann, "name"); ok {
+			spec.Name = s
+		}
+		if n, ok := intArg(decl, "Bulkhead", "maxConcurrent"); ok {
+			spec.MaxConcurrent = n
+		}
+		if d, ok := durationArg(ann, "maxWait", time.Second); ok {
+			spec.MaxWait = d
+		}
+		m.Bulkhead = spec
 	}
 	return m, true
 }

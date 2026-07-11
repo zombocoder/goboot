@@ -41,7 +41,7 @@ CLI: `generate`, `validate` (analyze, no write), `graph --format mermaid|dot|jso
 - **Constructor**: `func NewXxx(deps...) *Xxx` or `(*Xxx, error)`; may return an interface. Reject >2 returns or a non-`error` second return.
 - **HTTP handler**: `func(ctx context.Context, req Request) (*Response, error)` (also `(ctx) (Response, error)`, `(ctx, req) error`, `(ctx) error`). First param must be `context.Context`.
 - **Lifecycle / Scheduled hook**: `func()`, `func() error`, `func(context.Context)`, or `func(context.Context) error`.
-- **Intercepted service method** (@Transactional/@Traced/@Timed/@Retry/@Timeout/@Authorize/@Logged/@Audit): first param `context.Context`, last result `error`.
+- **Intercepted service method** (@Transactional/@Traced/@Timed/@Retry/@Timeout/@Authorize/@Logged/@Audit/@CircuitBreaker/@RateLimit/@Bulkhead): first param `context.Context`, last result `error`.
 - **Request binding tags**: `path:"id"`, `query:"expand"`, `header:"X-Request-ID"`, `cookie:"c"`, `json:"name"`.
 - **Config tags**: `config:"host" default:"0.0.0.0"` (and `required:"true"`).
 
@@ -98,7 +98,7 @@ Status: ✅ implemented · 🚧 planned (parse/generate not yet wired).
 
 ### Interception (service proxies — require `@Service(implements="Iface")`)
 
-Chain order (§25): timeout → tracing → logging → audit → metrics → authorize → retry → transaction → target.
+Chain order (§25): timeout → tracing → logging → audit → metrics → **bulkhead → circuit breaker → rate limit** → authorize → retry → transaction → target. The resilience gates default their registry key to `Type.Method` unless given an explicit `name` (shared name → shared state). Unlike the no-op observability defaults, the gate providers ship **real in-memory implementations** (they need no external system), so the protection is active out of the box.
 
 | Annotation        | Target | Args                                              | Generates                                       | Status           |
 | ----------------- | ------ | ------------------------------------------------- | ----------------------------------------------- | ---------------- |
@@ -111,9 +111,9 @@ Chain order (§25): timeout → tracing → logging → audit → metrics → au
 | `@RolesAllowed`   | method | positional `[]string`                             | shorthand for `@Authorize(roles=...)`           | ✅ |
 | `@Logged`         | method | `level` (debug\|info\|warn\|error, default info)  | structured logging around the call via `MethodLogger` | ✅          |
 | `@Audit`          | method | `action`, `resource`                              | audit event via an `AuditSink` after the call   | ✅               |
-| `@CircuitBreaker` | method | `name`                                            | circuit-breaker interceptor                     | 🚧               |
-| `@RateLimit`      | method | `name`                                            | rate-limit interceptor                          | 🚧               |
-| `@Bulkhead`       | method | —                                                 | concurrency isolation                           | 🚧               |
+| `@CircuitBreaker` | method | `name`, `failureThreshold`, `resetTimeout`, `halfOpenMax` | fail-fast breaker (`ErrCircuitOpen` when open) via `CircuitBreakerProvider` | ✅ |
+| `@RateLimit`      | method | `name`, `limit`, `period`, `burst`                | token-bucket throttle (`ErrRateLimited`) via `RateLimiterProvider` | ✅ |
+| `@Bulkhead`       | method | `name`, `maxConcurrent`, `maxWait`                | concurrency-limit semaphore (`ErrBulkheadFull`) via `BulkheadProvider` | ✅ |
 
 Note: `@Authorize` also works at the **HTTP route** level today (roles are passed to the `Authorizer` in the generated handler); both HTTP route level and service-method level (a proxy interceptor calling the Authorizer before invoking the target).
 
@@ -136,7 +136,7 @@ SQL dialect is a pluggable seam: `-dialect postgres` (`$1`, default) or `questio
 
 ### Observability, security, resilience details
 
-Runtime interfaces backing the interceptors live in `runtime/`: `TransactionManager`, `Tracer`/`Span`, `MethodMetrics`, `MethodLogger`, `AuditSink`/`AuditEvent`, `Authorizer`/`AuthorizationRequest`, `RetryPolicy`. Defaults are no-op/permit-all/direct so generated code runs before adapters are configured. Provide real implementations via `runtime.ProxyDependencies` (proxies), `runtime.HTTPHandlerDependencies` (HTTP), and a `db.DBProvider` (repositories).
+Runtime interfaces backing the interceptors live in `runtime/`: `TransactionManager`, `Tracer`/`Span`, `MethodMetrics`, `MethodLogger`, `AuditSink`/`AuditEvent`, `Authorizer`/`AuthorizationRequest`, `RetryPolicy`, `CircuitBreakerProvider`, `RateLimiterProvider`, `BulkheadProvider`. Defaults are no-op/permit-all/direct so generated code runs before adapters are configured. Provide real implementations via `runtime.ProxyDependencies` (proxies), `runtime.HTTPHandlerDependencies` (HTTP), and a `db.DBProvider` (repositories).
 
 ## Diagnostics
 

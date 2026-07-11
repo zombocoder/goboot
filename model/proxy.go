@@ -37,6 +37,36 @@ type InterceptedMethod struct {
 
 	// Audit, when non-nil, records an audit event after the call (§35.4).
 	Audit *AuditSpec
+
+	// CircuitBreaker, RateLimit, and Bulkhead, when non-nil, gate the call with
+	// the corresponding resilience interceptor (§36.3–§36.5).
+	CircuitBreaker *CircuitBreakerSpec
+	RateLimit      *RateLimitSpec
+	Bulkhead       *BulkheadSpec
+}
+
+// CircuitBreakerSpec mirrors @CircuitBreaker (§36.3). Zero fields let the
+// runtime apply its defaults.
+type CircuitBreakerSpec struct {
+	Name             string
+	FailureThreshold int
+	ResetTimeout     time.Duration
+	HalfOpenMax      int
+}
+
+// RateLimitSpec mirrors @RateLimit (§36.4).
+type RateLimitSpec struct {
+	Name   string
+	Limit  int
+	Period time.Duration
+	Burst  int
+}
+
+// BulkheadSpec mirrors @Bulkhead (§36.5).
+type BulkheadSpec struct {
+	Name          string
+	MaxConcurrent int
+	MaxWait       time.Duration
 }
 
 // AuditSpec mirrors @Audit for the generator to render an AuditEvent (§35.4).
@@ -75,5 +105,6 @@ type TxOptions struct {
 // Intercepts reports whether the method requests any interception.
 func (m InterceptedMethod) Intercepts() bool {
 	return m.Traced || m.Timed || m.Transactional || m.Timeout > 0 || m.Retry != nil ||
-		m.Authorize != nil || m.Logged || m.Audit != nil
+		m.Authorize != nil || m.Logged || m.Audit != nil ||
+		m.CircuitBreaker != nil || m.RateLimit != nil || m.Bulkhead != nil
 }

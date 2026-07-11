@@ -27,18 +27,21 @@ func buildComponents(proxyDeps runtime.ProxyDependencies) (*Components, error) {
 
 // FlakyServiceProxy is the generated interception proxy for FlakyService.
 type FlakyServiceProxy struct {
-	target      *resilienceapp.FlakyService
-	transaction runtime.TransactionManager
-	tracer      runtime.Tracer
-	metrics     runtime.MethodMetrics
-	authorizer  runtime.Authorizer
-	logger      runtime.MethodLogger
-	audit       runtime.AuditSink
+	target       *resilienceapp.FlakyService
+	transaction  runtime.TransactionManager
+	tracer       runtime.Tracer
+	metrics      runtime.MethodMetrics
+	authorizer   runtime.Authorizer
+	logger       runtime.MethodLogger
+	audit        runtime.AuditSink
+	breakers     runtime.CircuitBreakerProvider
+	rateLimiters runtime.RateLimiterProvider
+	bulkheads    runtime.BulkheadProvider
 }
 
 // NewFlakyServiceProxy builds the FlakyServiceProxy.
 func NewFlakyServiceProxy(target *resilienceapp.FlakyService, deps runtime.ProxyDependencies) *FlakyServiceProxy {
-	return &FlakyServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit}
+	return &FlakyServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit, breakers: deps.Breakers, rateLimiters: deps.RateLimiters, bulkheads: deps.Bulkheads}
 }
 
 func (p *FlakyServiceProxy) Attempt(a0 context.Context) (r0 int, err error) {
