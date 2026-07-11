@@ -30,7 +30,7 @@ Authoritative spec: `implementation-plan.md` (referenced by `§` throughout the 
 
 CLI: `generate`, `validate` (analyze, no write), `graph --format mermaid|dot|json|text`, `clean`, `doctor`, `init`, `plugins` (list configured vs. linked), `version`. Useful flags on generate/validate: `-profile prod,staging`, `-property key=value`, `-dialect postgres|question|mysql|sqlserver`, `-strict`, `-tags`.
 
-**Plugins are compile-time** (§46): a plugin is a Go module linked into the CLI, not loaded at runtime. The importable `github.com/zombocoder/goboot/cli` package exposes `cli.Main(pluginA.New(), ...)`; the default `cmd/goboot` binary injects none. List plugins in `goboot.yaml` under `plugins:` (shorthand `module@version` or an explicit `{module, version, import, new}` mapping) and goboot builds a plugin-aware binary from that list. Each plugin repo exports a constructor (default `New`) returning a `plugin.Plugin`; `plugin.APIVersion` is the contract version.
+**Plugins are compile-time** (§46): a plugin is a Go module linked into the CLI, not loaded at runtime. The importable `github.com/zombocoder/goboot/cli` package exposes `cli.Main(pluginA.New(), ...)`; the default `cmd/goboot` binary injects none. List plugins in `goboot.yaml` under `plugins:` (shorthand `module@version` or an explicit `{module, version, import, new}` mapping). `goboot generate` then **self-bootstraps**: it builds a plugin-aware CLI from that list (cached under `.goboot/`, keyed by the plugin set + toolchain), re-execs it, and the plugins are active. `GOBOOT_BOOTSTRAP=off` runs the plugin-free binary; `goboot plugins sync` writes a committed `tools/goboot/main.go` for reproducible CI (`go run ./tools/goboot generate ./...`); `goboot plugins` lists configured vs. linked. Each plugin exports a constructor (default `New`) returning a `plugin.Plugin`; `plugin.APIVersion` is the contract version. Official plugins live under `plugins/<name>/` as separate modules (see `PLUGINS.md`, `plugins/oracle`).
 
 ## Annotation syntax
 
@@ -141,13 +141,22 @@ SQL dialect is a pluggable seam: `-dialect postgres` (`$1`, default), `question`
 
 Runtime interfaces backing the interceptors live in `runtime/`: `TransactionManager`, `Tracer`/`Span`, `MethodMetrics`, `MethodLogger`, `AuditSink`/`AuditEvent`, `Authorizer`/`AuthorizationRequest`, `RetryPolicy`, `CircuitBreakerProvider`, `RateLimiterProvider`, `BulkheadProvider`. Defaults are no-op/permit-all/direct so generated code runs before adapters are configured. Provide real implementations via `runtime.ProxyDependencies` (proxies), `runtime.HTTPHandlerDependencies` (HTTP), and a `db.DBProvider` (repositories).
 
+**Database adapters.** Generated repositories depend only on `runtime/db` interfaces; a driver adapter supplies the `db.DBProvider` and a `TransactionManager`. Built-in: `adapters/databasesql` (any stdlib `database/sql` driver; main module) and `adapters/pgx` (native `jackc/pgx/v5` over `pgxpool`; separate module — `go get github.com/zombocoder/goboot/adapters/pgx`). Wire pgx with the default `postgres` dialect:
+
+```go
+pool, _ := pgxpool.New(ctx, dsn)
+dbProvider := pgxadapter.NewProvider(pool)                 // → generated buildComponents(dbProvider)
+proxyDeps := runtime.DefaultProxyDependencies()
+proxyDeps.Transactions = pgxadapter.NewTransactionManager(pool)  // enables @Transactional
+```
+
 ## Diagnostics
 
 Errors are source-positioned with stable codes: `GOBANN*` (annotation), `GOBDI*` (DI), `GOBHTTP*` (HTTP), `GOBCFG*`/`GOBLIF*` (config/lifecycle), `GOBPRX*` (proxies), `GOBREP*` (repositories), `GOBSCH*` (scheduling), `GOBPLG*` (plugins). Common ones: missing/ambiguous dependency, dependency cycle, duplicate route, invalid handler signature, concrete injection of a proxied service (inject the interface instead).
 
 ## Extending with plugins
 
-Plugins are compile-time (no dynamic loading). Implement `plugin.Plugin` plus any of `AnnotationProvider` (register annotations), `Analyzer` (diagnostics), `Generator` (files), `DialectProvider` (a DB driver's placeholder style). See `plugin/exampleplugin`. Host them by building a small `main` that injects them.
+Plugins are compile-time (no dynamic loading). Implement `plugin.Plugin` plus any of `AnnotationProvider` (register annotations), `Analyzer` (diagnostics), `Generator` (files), `DialectProvider` (a DB driver's placeholder style). Standalone-module examples, one per capability: `plugins/oracle` (`DialectProvider` — Oracle dialect), `plugins/openapi` (`Generator` — OpenAPI 3 spec), `plugins/lint` (`Analyzer` — REST convention warnings); `plugin/exampleplugin` exercises all four in-module. Note the `Analyzer`/`Generator` hooks receive `model.Application` (structured routes/components), not raw plugin annotations. Host them by listing the module in `goboot.yaml` (`goboot generate` self-bootstraps a plugin-aware CLI), or by building a small `main` calling `cli.Main(pluginA.New(), ...)`. Full guide: `PLUGINS.md`.
 
 ## When editing this framework's own source
 

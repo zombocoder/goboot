@@ -44,6 +44,18 @@ jobs:
       - name: Coverage summary
         run: go tool cover -func=coverage.out | tail -1
 
+      # Plugin and adapter submodules live under plugins/*/ and adapters/*/ with
+      # their own go.mod, so the root `go build/test ./...` does not reach them.
+      # Build and test each nested module.
+      - name: Nested modules
+        run: |
+          for mod in plugins/*/go.mod adapters/*/go.mod; do
+            [ -e "$mod" ] || continue
+            dir=$(dirname "$mod")
+            echo "== $dir =="
+            (cd "$dir" && test -z "$(gofmt -l .)" && go vet ./... && go test ./...)
+          done
+
   fuzz-smoke:
     name: fuzz smoke
     runs-on: ubuntu-latest

@@ -29,6 +29,9 @@ func cmdGraph(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "goboot: %v\n", err)
 		return 1
 	}
+	if code, done := maybeBootstrap(*dir, cfg, stdout, stderr); done {
+		return code
+	}
 	patterns := resolvePatterns(fs.Args(), cfg)
 
 	// Graph output tolerates non-fatal diagnostics; only a load failure aborts.
