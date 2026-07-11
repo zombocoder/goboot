@@ -70,3 +70,18 @@ jobs:
         run: go test ./annotation/ -run '^$' -fuzz FuzzParseComment -fuzztime 20s
       - name: Fuzz SQL compiler
         run: go test ./sqlgen/ -run '^$' -fuzz FuzzCompile -fuzztime 20s
+
+  vscode-grammar:
+    name: vscode grammar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Tokenize sample annotations and assert the grammar's scopes.
+      - name: Grammar tokenization test
+        working-directory: editors/vscode/test
+        run: |
+          npm ci
+          node tokenize.js
