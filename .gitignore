@@ -35,3 +35,6 @@ profile.cov
 
 # goboot plugin build cache
 .goboot/
+
+# MkDocs build output
+site/

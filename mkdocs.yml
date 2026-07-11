@@ -1,0 +1,70 @@
+site_name: goboot
+site_description: Annotation-driven, compile-time application framework for Go
+site_url: https://zombocoder.github.io/goboot/
+repo_url: https://github.com/zombocoder/goboot
+repo_name: zombocoder/goboot
+edit_uri: edit/main/docs/
+copyright: Apache-2.0 licensed
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - navigation.tracking
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Developer guide:
+      - Architecture: guide/architecture.md
+      - Dependency injection: guide/di.md
+      - HTTP controllers: guide/http.md
+      - Repositories: guide/repositories.md
+      - Interception: guide/interception.md
+      - Config & lifecycle: guide/config-lifecycle.md
+      - Testing: guide/testing.md
+  - Plugins & adapters:
+      - Plugins: plugins/index.md
+      - Adapters: plugins/adapters.md
+  - Reference:
+      - Annotations: reference/annotations.md
+      - CLI: reference/cli.md
+      - Diagnostics: reference/diagnostics.md
