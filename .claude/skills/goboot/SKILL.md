@@ -150,6 +150,8 @@ proxyDeps := runtime.DefaultProxyDependencies()
 proxyDeps.Transactions = pgxadapter.NewTransactionManager(pool)  // enables @Transactional
 ```
 
+**Observability adapters** (separate modules, wired via `runtime.ProxyDependencies`; defaults are no-op): `adapters/otel` — `proxyDeps.Tracer = goboototel.NewTracer(otel.Tracer("goboot"))` makes `@Traced` emit real OpenTelemetry spans; `adapters/prometheus` — `proxyDeps.Metrics = gobootprom.NewMetrics(reg)` makes `@Timed` increment `goboot_method_calls_total{method,outcome}` (expose `reg` via `promhttp`). For structured `@Logged`/`@Audit`, implement `runtime.MethodLogger`/`AuditSink` (see `goboot-todo`'s `internal/observability` over `slog`).
+
 ## Diagnostics
 
 Errors are source-positioned with stable codes: `GOBANN*` (annotation), `GOBDI*` (DI), `GOBHTTP*` (HTTP), `GOBCFG*`/`GOBLIF*` (config/lifecycle), `GOBPRX*` (proxies), `GOBREP*` (repositories), `GOBSCH*` (scheduling), `GOBPLG*` (plugins). Common ones: missing/ambiguous dependency, dependency cycle, duplicate route, invalid handler signature, concrete injection of a proxied service (inject the interface instead).

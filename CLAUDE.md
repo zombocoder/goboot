@@ -16,6 +16,8 @@ Implemented packages:
 - `generator/di/` — emits the wiring: `buildComponents`, config loaders, HTTP handler proxies + `RegisterRoutes`, `buildLifecycle`, `NewApplication`, **service proxies** (interception), and **repository implementations**
 - `adapters/databasesql/` — reference driver binding over stdlib `database/sql` + a `TransactionManager` (part of the main module)
 - `adapters/pgx/` — native PostgreSQL binding over `jackc/pgx/v5` (`pgxpool`): `db.DBProvider` + `TransactionManager`. A **separate module** (isolates the pgx dependency); pair with the default `postgres` dialect
+- `adapters/otel/` — `runtime.Tracer` over OpenTelemetry (real spans for `@Traced`); separate module
+- `adapters/prometheus/` — `runtime.MethodMetrics` over Prometheus (`goboot_method_calls_total{method,outcome}` for `@Timed`); separate module
 - `plugin/` — the compile-time extension API (annotations, analyzers, generators, SQL dialects/drivers); `plugin/exampleplugin/` is a reference plugin exercising all four capabilities
 - `cli/` — the importable CLI implementation (`cli.Main(plugins...)`, `cli.Run`): `generate`, `validate`, `graph`, `clean`, `doctor`, `init`, `plugins`, `version`; injected plugins live in the `hostPlugins` var
 - `cmd/goboot/` — the thin default binary; a thin `main` calling `cli.Main()` with no plugins
