@@ -64,22 +64,23 @@ func renderApplication(app *model.Application, im *imports, f features) string {
 	rt := func(sym string) string { return im.qualify(runtimePath, "runtime", sym) }
 
 	var params []string
+	var buildArgs []string
 	if f.hasConfig {
 		params = append(params, "configSource "+im.qualify(configPath, "config", "Source"))
+		buildArgs = append(buildArgs, "configSource")
+	}
+	if f.hasProxies {
+		params = append(params, "proxyDeps "+rt("ProxyDependencies"))
+		buildArgs = append(buildArgs, "proxyDeps")
 	}
 	if f.hasRoutes {
 		params = append(params, "deps "+rt("HTTPHandlerDependencies"), "addr string")
 	}
 
-	configArg := ""
-	if f.hasConfig {
-		configArg = "configSource"
-	}
-
 	var b strings.Builder
 	b.WriteString("// NewApplication builds the components and assembles a runnable application.\n")
 	fmt.Fprintf(&b, "func NewApplication(%s) (*%s, error) {\n", strings.Join(params, ", "), rt("Application"))
-	fmt.Fprintf(&b, "\tcomponents, err := buildComponents(%s)\n", configArg)
+	fmt.Fprintf(&b, "\tcomponents, err := buildComponents(%s)\n", strings.Join(buildArgs, ", "))
 	b.WriteString("\tif err != nil {\n\t\treturn nil, err\n\t}\n")
 
 	if f.hasLifecycle {

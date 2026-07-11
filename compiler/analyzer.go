@@ -61,6 +61,10 @@ func Analyze(scan *ScanResult) *AnalysisResult {
 		a.discover(decl, app)
 	}
 	a.checkAppRoot()
+	// Synthesize interface proxies before resolution so that intercepted
+	// services are reached through their proxy and concrete injection is caught
+	// (§24).
+	a.discoverProxies(scan, app)
 	app.SortComponents()
 
 	a.resolve(app)
@@ -149,7 +153,7 @@ func (a *analysis) discoverComponent(decl *Declaration, app *model.Application) 
 	if explicit, ok := componentName(decl); ok {
 		name = explicit
 	}
-	app.Components = append(app.Components, &model.Component{
+	comp := &model.Component{
 		ID:           model.NewComponentID(decl.PkgPath, decl.TypeName.Name()),
 		Name:         name,
 		PackagePath:  decl.PkgPath,
@@ -161,7 +165,20 @@ func (a *analysis) discoverComponent(decl *Declaration, app *model.Application) 
 		Constructor:  ctor,
 		Dependencies: append([]model.Dependency(nil), ctor.Params...),
 		Position:     decl.Pos,
-	})
+	}
+	// A service may declare the interface it is exposed as (§24.2), which the
+	// proxy pass uses when the service has intercepted methods.
+	if kind == model.ComponentService {
+		if impl, ok := stringArg(decl, "Service", "implements"); ok {
+			iface, derr := resolveInterface(decl.TypeName, impl, decl.Pos)
+			if derr != nil {
+				a.diags = append(a.diags, derr)
+			} else {
+				comp.Interface = iface
+			}
+		}
+	}
+	app.Components = append(app.Components, comp)
 }
 
 // discoverBean builds a component from an @Bean provider function.
