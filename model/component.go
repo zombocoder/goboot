@@ -55,6 +55,9 @@ const (
 	// ComponentConfigProperties is an @ConfigurationProperties struct loaded
 	// from configuration rather than constructed.
 	ComponentConfigProperties
+	// ComponentProxy is a generated interface proxy that wraps a target
+	// component to apply method interception (§24).
+	ComponentProxy
 )
 
 func (k ComponentKind) String() string {
@@ -75,6 +78,8 @@ func (k ComponentKind) String() string {
 		return "advice"
 	case ComponentConfigProperties:
 		return "configuration-properties"
+	case ComponentProxy:
+		return "proxy"
 	default:
 		return "unknown"
 	}
@@ -121,6 +126,19 @@ type Component struct {
 	// ConfigPrefix is the @ConfigurationProperties prefix for a
 	// ComponentConfigProperties component; empty otherwise.
 	ConfigPrefix string
+	// Interface is the interface a proxied service is exposed as (§24.2); nil
+	// for non-proxied components. On a target it names the interface the proxy
+	// implements; on a ComponentProxy it is the provided interface type.
+	Interface types.Type
+	// Proxied reports that this component's methods are intercepted and it is
+	// therefore reached only through its generated proxy (§24.3).
+	Proxied bool
+	// Intercepted lists the target's methods that carry interception
+	// annotations, in declaration order; empty for non-proxied components.
+	Intercepted []InterceptedMethod
+	// ProxyTarget is set on a ComponentProxy: the ID of the concrete component
+	// it wraps.
+	ProxyTarget ComponentID
 	// PostConstruct is the component's @PostConstruct hook, or nil.
 	PostConstruct *LifecycleMethod
 	// PreDestroy is the component's @PreDestroy hook, or nil.

@@ -191,6 +191,48 @@ func TestCfgE2EWiringUpToDate(t *testing.T) {
 	}
 }
 
+// TestProxyE2EWiringUpToDate guards the committed service-proxy integration
+// wiring against the generator and asserts the proxy sections are present.
+func TestProxyE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/proxyapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	for _, d := range res.Diagnostics {
+		if d.Severity == 2 {
+			t.Fatalf("analysis error: %s", d.Error())
+		}
+	}
+	src, err := Generate(res.App, res.Graph, Options{Package: "proxye2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		"func buildComponents(proxyDeps runtime.ProxyDependencies)",
+		"type OrderServiceProxy struct {",
+		"func NewOrderServiceProxy(target *proxyapp.OrderService, deps runtime.ProxyDependencies) *OrderServiceProxy",
+		"p.transaction.WithinTransaction(",
+		"p.tracer.Begin(",
+		"p.metrics.RecordFailure(",
+		"return p.target.GetOrder(", // delegated method
+		"orderServiceProxy := NewOrderServiceProxy(orderService, proxyDeps)",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated proxy wiring missing %q", want)
+		}
+	}
+	path := filepath.Join("..", "..", "internal", "proxye2e", "wiring.gen.go")
+	committed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/proxye2e/wiring.gen.go is stale; regenerate it from the proxyapp example")
+	}
+}
+
 // TestE2EWiringUpToDate guards that the committed integration wiring in
 // internal/e2e/wiring.gen.go matches what the generator produces. If this fails,
 // regenerate it (the test message explains how) so the end-to-end tests exercise

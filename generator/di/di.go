@@ -62,9 +62,15 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 	if feats.hasConfig {
 		im.add(configPath, "config")
 	}
+	if feats.hasProxies {
+		im.add(runtimePath, "runtime")
+	}
 	reserved := map[string]bool{"err": true, "out": true}
 	if feats.hasConfig {
 		reserved["configSource"] = true
+	}
+	if feats.hasProxies {
+		reserved["proxyDeps"] = true
 	}
 	for _, alias := range im.aliases() {
 		reserved[alias] = true
@@ -84,6 +90,7 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 		body:          body,
 		returnStmt:    renderReturn(bindings),
 		configLoaders: renderConfigLoaders(app, im),
+		proxyPart:     renderProxies(app, byID, im),
 		httpPart:      renderHTTP(app, byID, im),
 		lifecyclePart: renderLifecycle(app, bindings, byID, im, feats),
 		appPart:       renderApplication(app, im, feats),
@@ -174,6 +181,16 @@ func renderConstructor(bd *binding, byID map[model.ComponentID]*binding, im *imp
 			bd.local, ctor.FuncName), nil
 	}
 
+	// A proxy wraps its already-constructed target with the proxy dependencies
+	// bundle. Its constructor is generated locally in this package.
+	if c.Kind == model.ComponentProxy {
+		targetBinding, ok := byID[c.ProxyTarget]
+		if !ok {
+			return "", fmt.Errorf("di: proxy %s has no constructed target %s", c.Name, c.ProxyTarget)
+		}
+		return fmt.Sprintf("\t%s := %s(%s, proxyDeps)\n", bd.local, ctor.FuncName, targetBinding.local), nil
+	}
+
 	args, err := constructorArgs(c, byID)
 	if err != nil {
 		return "", err
@@ -249,6 +266,7 @@ type sections struct {
 	body          string
 	returnStmt    string
 	configLoaders string
+	proxyPart     string
 	httpPart      string
 	lifecyclePart string
 	appPart       string
@@ -271,7 +289,7 @@ func assemble(sec sections, im *imports) string {
 	}
 	b.WriteString(sec.returnStmt)
 	b.WriteString("}\n")
-	for _, part := range []string{sec.configLoaders, sec.httpPart, sec.lifecyclePart, sec.appPart} {
+	for _, part := range []string{sec.configLoaders, sec.proxyPart, sec.httpPart, sec.lifecyclePart, sec.appPart} {
 		if part != "" {
 			b.WriteString("\n")
 			b.WriteString(part)

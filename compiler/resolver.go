@@ -27,6 +27,21 @@ func (a *analysis) resolve(app *model.Application) {
 }
 
 func (a *analysis) resolveDependency(app *model.Application, consumer *model.Component, dep *model.Dependency) {
+	// A pre-resolved dependency (e.g. a proxy wrapping its target) is left as
+	// the analyzer set it.
+	if dep.ResolvedTo != "" {
+		return
+	}
+	// Reject injecting a proxied service by its concrete type: interception
+	// only applies through the generated proxy, so the interface must be used
+	// (§24.3).
+	if target := proxiedConcreteMatch(app, consumer, dep.Type); target != nil {
+		a.diags = append(a.diags, diagErr(CodeConcreteInjection, dep.Position,
+			"%s injects %s by its concrete type %s, bypassing interception; inject the interface %s instead",
+			consumer.Name, target.Name, typeString(dep.Type), typeString(target.Interface)))
+		return
+	}
+
 	candidates := resolutionCandidates(app, consumer, dep.Type)
 	switch len(candidates) {
 	case 0:
@@ -57,11 +72,40 @@ func resolutionCandidates(app *model.Application, consumer *model.Component, wan
 		if c.ID == consumer.ID || c.ProvidedType == nil {
 			continue
 		}
+		// A proxied target is reached only through its proxy; it never
+		// satisfies a dependency directly (§24.3).
+		if c.Proxied {
+			continue
+		}
 		if types.AssignableTo(c.ProvidedType, want) {
 			out = append(out, c)
 		}
 	}
 	return out
+}
+
+// proxiedConcreteMatch returns a proxied component whose concrete type satisfies
+// the dependency, when the dependency is not itself an interface — the concrete
+// injection that §24.3 forbids. It returns nil otherwise.
+func proxiedConcreteMatch(app *model.Application, consumer *model.Component, want types.Type) *model.Component {
+	if isInterfaceType(want) {
+		return nil
+	}
+	for _, c := range app.Components {
+		if !c.Proxied || c.ID == consumer.ID {
+			continue
+		}
+		if c.ProvidedType != nil && types.AssignableTo(c.ProvidedType, want) {
+			return c
+		}
+	}
+	return nil
+}
+
+// isInterfaceType reports whether t's underlying type is an interface.
+func isInterfaceType(t types.Type) bool {
+	_, ok := t.Underlying().(*types.Interface)
+	return ok
 }
 
 // filterPrimary returns the primary components among the candidates.

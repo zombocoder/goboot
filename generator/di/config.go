@@ -18,10 +18,11 @@ type features struct {
 	hasConfig    bool
 	hasRoutes    bool
 	hasLifecycle bool
+	hasProxies   bool
 }
 
 // detectFeatures inspects the application for configuration properties, routes,
-// and lifecycle hooks.
+// lifecycle hooks, and service proxies.
 func detectFeatures(app *model.Application) features {
 	var f features
 	f.hasRoutes = len(app.Routes) > 0
@@ -32,17 +33,25 @@ func detectFeatures(app *model.Application) features {
 		if c.HasLifecycle() {
 			f.hasLifecycle = true
 		}
+		if c.Kind == model.ComponentProxy {
+			f.hasProxies = true
+		}
 	}
 	return f
 }
 
 // buildComponentsParam returns the parameter list for buildComponents: a config
-// source when the application has configuration properties, else empty.
+// source when the application has configuration properties and proxy
+// dependencies when it has service proxies.
 func buildComponentsParam(f features, im *imports) string {
-	if !f.hasConfig {
-		return ""
+	var params []string
+	if f.hasConfig {
+		params = append(params, "configSource "+im.qualify(configPath, "config", "Source"))
 	}
-	return "configSource " + im.qualify(configPath, "config", "Source")
+	if f.hasProxies {
+		params = append(params, "proxyDeps "+im.qualify(runtimePath, "runtime", "ProxyDependencies"))
+	}
+	return strings.Join(params, ", ")
 }
 
 // renderConfigLoaders emits a typed Load<Type> function for each configuration

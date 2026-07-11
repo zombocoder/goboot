@@ -182,6 +182,19 @@ func coreDefinitions() []*Definition {
 		// ---- Lifecycle --------------------------------------------------
 		{Name: "PostConstruct", Targets: []Target{TargetMethod}},
 		{Name: "PreDestroy", Targets: []Target{TargetMethod}},
+
+		// ---- Interception (service proxies) -----------------------------
+		{Name: "Transactional", Targets: []Target{TargetMethod, TargetType},
+			Arguments: map[string]ArgumentDefinition{
+				"readOnly":    arg(ArgBoolean),
+				"isolation":   enum("default", "read_committed", "repeatable_read", "serializable"),
+				"propagation": enum("required", "requires_new", "supports", "not_supported"),
+				"timeout":     arg(ArgDuration),
+			}},
+		{Name: "Traced", Targets: []Target{TargetMethod, TargetType},
+			Arguments: map[string]ArgumentDefinition{"name": arg(ArgString)}},
+		{Name: "Timed", Targets: []Target{TargetMethod, TargetType},
+			Arguments: map[string]ArgumentDefinition{"name": arg(ArgString)}},
 	}
 }
 
