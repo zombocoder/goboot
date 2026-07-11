@@ -44,6 +44,16 @@ jobs:
       - name: Coverage summary
         run: go tool cover -func=coverage.out | tail -1
 
+      # Plugin submodules live under plugins/*/ with their own go.mod, so the
+      # root `go build/test ./...` does not reach them. Build and test each.
+      - name: Plugin submodules
+        run: |
+          for mod in plugins/*/go.mod; do
+            dir=$(dirname "$mod")
+            echo "== $dir =="
+            (cd "$dir" && gofmt -l . && go vet ./... && go test ./...)
+          done
+
   fuzz-smoke:
     name: fuzz smoke
     runs-on: ubuntu-latest

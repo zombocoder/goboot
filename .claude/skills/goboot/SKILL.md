@@ -30,7 +30,7 @@ Authoritative spec: `implementation-plan.md` (referenced by `§` throughout the 
 
 CLI: `generate`, `validate` (analyze, no write), `graph --format mermaid|dot|json|text`, `clean`, `doctor`, `init`, `plugins` (list configured vs. linked), `version`. Useful flags on generate/validate: `-profile prod,staging`, `-property key=value`, `-dialect postgres|question|mysql|sqlserver`, `-strict`, `-tags`.
 
-**Plugins are compile-time** (§46): a plugin is a Go module linked into the CLI, not loaded at runtime. The importable `github.com/zombocoder/goboot/cli` package exposes `cli.Main(pluginA.New(), ...)`; the default `cmd/goboot` binary injects none. List plugins in `goboot.yaml` under `plugins:` (shorthand `module@version` or an explicit `{module, version, import, new}` mapping) and goboot builds a plugin-aware binary from that list. Each plugin repo exports a constructor (default `New`) returning a `plugin.Plugin`; `plugin.APIVersion` is the contract version.
+**Plugins are compile-time** (§46): a plugin is a Go module linked into the CLI, not loaded at runtime. The importable `github.com/zombocoder/goboot/cli` package exposes `cli.Main(pluginA.New(), ...)`; the default `cmd/goboot` binary injects none. List plugins in `goboot.yaml` under `plugins:` (shorthand `module@version` or an explicit `{module, version, import, new}` mapping). `goboot generate` then **self-bootstraps**: it builds a plugin-aware CLI from that list (cached under `.goboot/`, keyed by the plugin set + toolchain), re-execs it, and the plugins are active. `GOBOOT_BOOTSTRAP=off` runs the plugin-free binary; `goboot plugins sync` writes a committed `tools/goboot/main.go` for reproducible CI (`go run ./tools/goboot generate ./...`); `goboot plugins` lists configured vs. linked. Each plugin exports a constructor (default `New`) returning a `plugin.Plugin`; `plugin.APIVersion` is the contract version. Official plugins live under `plugins/<name>/` as separate modules (see `PLUGINS.md`, `plugins/oracle`).
 
 ## Annotation syntax
 
@@ -147,7 +147,7 @@ Errors are source-positioned with stable codes: `GOBANN*` (annotation), `GOBDI*`
 
 ## Extending with plugins
 
-Plugins are compile-time (no dynamic loading). Implement `plugin.Plugin` plus any of `AnnotationProvider` (register annotations), `Analyzer` (diagnostics), `Generator` (files), `DialectProvider` (a DB driver's placeholder style). See `plugin/exampleplugin`. Host them by building a small `main` that injects them.
+Plugins are compile-time (no dynamic loading). Implement `plugin.Plugin` plus any of `AnnotationProvider` (register annotations), `Analyzer` (diagnostics), `Generator` (files), `DialectProvider` (a DB driver's placeholder style). See `plugin/exampleplugin` (all four capabilities, in-module) and `plugins/oracle` (a standalone module). Host them by listing the module in `goboot.yaml` (`goboot generate` self-bootstraps a plugin-aware CLI), or by building a small `main` calling `cli.Main(pluginA.New(), ...)`. Full guide: `PLUGINS.md`.
 
 ## When editing this framework's own source
 
