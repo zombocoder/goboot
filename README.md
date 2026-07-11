@@ -1,84 +1,164 @@
+<div align="center">
+
+<img src="assets/goboot-logo.png" alt="goboot" width="160" height="160" />
+
 # goboot
 
-**An annotation-driven, compile-time application framework for Go.**
+**An annotation-driven, _compile-time_ application framework for Go.**
 
-goboot gives you a Spring Boot–style developer experience while keeping everything Go loves: explicit dependencies, static typing, fast startup, and readable code. You annotate ordinary Go types and methods; a CLI compiler reads the annotations, builds a typed application model and dependency graph, validates it, and generates **ordinary, readable Go** — with **no runtime reflection for dependency injection** and **no classpath scanning**.
+A Spring Boot–style developer experience that compiles down to plain, readable Go —
+no runtime reflection for DI, no classpath scanning.
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/zombocoder/goboot.svg)](https://pkg.go.dev/github.com/zombocoder/goboot)
+[![Release](https://img.shields.io/github/v/release/zombocoder/goboot?sort=semver)](https://github.com/zombocoder/goboot/releases)
+[![Go 1.25](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
+</div>
+
+You annotate ordinary Go types and methods; the `goboot` CLI reads the annotations,
+builds a typed application model + dependency graph, validates it, and generates
+**ordinary, readable Go**. Dependency resolution and wiring happen at *generation
+time* — the program that ships does no reflection-based DI and no startup scanning,
+and every dependency is checked with `go/types`, never strings.
 
 ```go
-// @Service(name="userService", implements="UserUseCase")
-type UserService struct {
-    repo domain.UserRepository
+// @RestController
+// @RequestMapping(path="/users")
+type UserController struct{ users UserUseCase }
+
+func NewUserController(users UserUseCase) *UserController { return &UserController{users} }
+
+// @PostMapping(path="")
+func (c *UserController) Create(ctx context.Context, req CreateRequest) (*UserResponse, error) {
+    return c.users.Create(ctx, req.toInput())
 }
 
-func NewUserService(repo domain.UserRepository) *UserService { return &UserService{repo: repo} }
+// @Service(name="userService", implements="UserUseCase")
+type UserService struct{ repo UserRepository }
+
+func NewUserService(repo UserRepository) *UserService { return &UserService{repo} }
 
 // @Transactional
-// @Traced(name="users.create")
-func (s *UserService) CreateUser(ctx context.Context, cmd CreateUserCommand) (*domain.User, error) {
-    // ...
+// @Traced
+// @Timed
+// @Audit(action="create", resource="user")
+func (s *UserService) Create(ctx context.Context, in CreateInput) (*User, error) { /* ... */ }
+
+// @Repository(generate=true, entity="User", table="users")
+type UserRepository interface {
+    // @Query(`SELECT id, name FROM users WHERE id = :id`)
+    FindByID(ctx context.Context, id string) (*User, error)
+    // @Exec(`INSERT INTO users (id, name) VALUES (:u.ID, :u.Name)`)
+    Insert(ctx context.Context, u User) error
 }
 ```
 
 ```bash
-go run github.com/zombocoder/goboot/cmd/goboot generate ./...
+goboot generate ./...
 ```
 
-You get generated wiring that constructs your components in dependency order, registers HTTP routes, applies transactions/tracing/metrics through generated proxies, loads typed configuration, runs lifecycle hooks and scheduled tasks, and starts a server — all as plain Go you can read and debug.
+goboot emits the wiring: constructors in dependency order, HTTP routes + handler
+proxies (bind → validate → authorize → invoke → write), the SQL repository
+implementation, service proxies that apply your `@Transactional`/`@Traced`/…
+interceptors, typed config loaders, lifecycle, scheduled tasks, and
+`NewApplication` — all plain Go you can read and step through in a debugger.
 
-## Why compile-time?
-
-The single architectural principle: **annotations describe intent; the compiler validates that intent into a semantic model; generators turn the model into plain Go.** Dependency resolution, component discovery, and wiring all happen at generation time. The generated program does not scan packages or discover components at startup, and interface/dependency compatibility is checked with `go/types` — never strings.
-
-## Features
-
-- **Dependency injection** — constructor injection, interface resolution, `@Primary`, `@Nut` provider functions, deterministic construction order, cycle detection.
-- **HTTP controllers** — `@RestController`/`@GetMapping`/`@PostMapping` generate handler proxies (bind → validate → authorize → invoke → write) with centralized RFC 7807 error handling.
-- **Configuration** — typed `@ConfigurationProperties` bound from YAML and environment with defaults.
-- **Lifecycle** — `@PostConstruct`/`@PreDestroy` with ordered startup, rollback, and graceful shutdown.
-- **Service proxies (interception)** — `@Transactional`, `@Traced`, `@Timed` wrap methods through generated interface proxies.
-- **Repositories** — generate implementations from `@Query`/`@Exec` interfaces with named SQL parameters; **driver-agnostic** via a pluggable dialect.
-- **Conditions & profiles** — `@Profile`, `@ConditionalOnProperty`, `@ConditionalOnNut`, `@ConditionalOnMissingNut`.
-- **Scheduling** — `@Scheduled` background tasks.
-- **Plugin system** — external packages register annotations, analyzers, generators, and database dialects at compile time.
-
-## Install
+## Quickstart
 
 ```bash
+# 1. install the CLI
 go install github.com/zombocoder/goboot/cmd/goboot@latest
+
+# 2. scaffold config in your module
+goboot init
+
+# 3. annotate your code (see the example above), then generate
+goboot generate ./...
+
+# 4. wire the generated app in main.go and run
+go run ./cmd/server
 ```
 
-Or pin it via `go:generate` in your project (recommended for reproducible builds):
+`goboot init` writes a `goboot.yaml`; `goboot generate` produces
+`internal/generated/zz_goboot_wiring.gen.go` exposing `NewApplication(...)`,
+`RegisterRoutes(...)`, and `buildComponents(...)`. Add a `go:generate` directive
+for reproducible builds:
 
 ```go
 //go:generate go run github.com/zombocoder/goboot/cmd/goboot generate ./...
 ```
 
+## Features
+
+| Area | Annotations |
+| ---- | ----------- |
+| **DI** | `@Application` `@Service` `@Component` `@Configuration` `@Nut` `@Primary` `@Named` `@Scope` |
+| **HTTP** | `@RestController` `@RequestMapping` `@GetMapping` `@PostMapping` `@PutMapping` `@PatchMapping` `@DeleteMapping` `@Response` `@ResponseStatus` `@Consumes` `@Produces` |
+| **Errors** | `@ControllerAdvice` `@ExceptionHandler` (typed → response), RFC-7807 `Problem` |
+| **Repositories** | `@Repository(generate=true)` with `@Query` `@Exec` `@Batch` `@Call`; dialects: postgres, mysql, sqlserver, `?`; driver-neutral |
+| **Interception** (proxies) | `@Transactional` `@Traced` `@Timed` `@Logged` `@Audit` `@Retry` `@Timeout` `@CircuitBreaker` `@RateLimit` `@Bulkhead` `@Authorize` `@RolesAllowed` |
+| **Config & lifecycle** | `@ConfigurationProperties` `@PostConstruct` `@PreDestroy` `@Scheduled` |
+| **Conditions & profiles** | `@Profile` `@ConditionalOnProperty` `@ConditionalOnNut` `@ConditionalOnMissingNut` |
+
+Core invariants: **compile-time only**, **deterministic** output (byte-identical
+for the same input), **type-safe** via `go/types`, and **diagnostics not panics**
+(stable `GOB*` codes with source positions).
+
+## Plugins & adapters
+
+goboot is extended at **compile time** — plugins are Go modules linked into the
+CLI (no dynamic loading). List them in `goboot.yaml` and `goboot generate`
+self-bootstraps a plugin-aware build. Runtime adapters plug real backends into the
+generated code's seams.
+
+| Module | Kind | What it does |
+| ------ | ---- | ------------ |
+| [`plugins/openapi`](plugins/openapi) | Generator plugin | Emits an OpenAPI 3 spec from your routes |
+| [`plugins/oracle`](plugins/oracle) | Dialect plugin | Oracle SQL dialect (`:1`, `:2`) |
+| [`plugins/lint`](plugins/lint) | Analyzer plugin | REST convention warnings |
+| [`adapters/pgx`](adapters/pgx) | DB adapter | Native PostgreSQL over `jackc/pgx/v5` |
+| [`adapters/otel`](adapters/otel) | Tracing adapter | `@Traced` → OpenTelemetry spans |
+| [`adapters/prometheus`](adapters/prometheus) | Metrics adapter | `@Timed` → Prometheus counters |
+
+Write your own with `plugin.Plugin` + `AnnotationProvider` / `Analyzer` /
+`Generator` / `DialectProvider`. Full guide: [PLUGINS.md](PLUGINS.md).
+
+## Editor support
+
+A [VS Code extension](editors/vscode) highlights goboot annotations inside Go doc
+comments and ships annotation snippets. Install the `.vsix` from a
+[release](https://github.com/zombocoder/goboot/releases) or search the Marketplace
+for **goboot Annotations**.
+
 ## CLI
 
 ```bash
 goboot init                       # scaffold goboot.yaml
-goboot generate ./...             # generate wiring into the output package
+goboot generate ./...             # generate wiring (+ plugin artifacts)
 goboot validate ./...             # analyze and report diagnostics, no files written
 goboot graph ./... --format mermaid
+goboot plugins                    # list configured vs. linked plugins
 goboot clean                      # remove generated files
 goboot doctor                     # environment checks
 goboot version
 ```
 
-Useful flags on `generate`/`validate`: `-profile prod,staging`, `-property cache.enabled=true`, `-dialect postgres|question`, `-strict`, `-tags`.
-
-## Extending with plugins
-
-goboot is extended at compile time through the `plugin` package — no dynamic loading. A plugin implements `plugin.Plugin` plus any of `AnnotationProvider`, `Analyzer`, `Generator`, or `DialectProvider` (a database driver). See [`plugin/exampleplugin`](plugin/exampleplugin) for a worked example.
+Useful flags on `generate`/`validate`: `-profile prod,staging`,
+`-property cache.enabled=true`, `-dialect postgres|mysql|sqlserver|question`,
+`-strict`, `-tags`.
 
 ## Status
 
-goboot is under active development. The core framework — DI, HTTP, configuration, lifecycle, interception, repositories, conditions/profiles, scheduling, a CLI, and a plugin system — is implemented and tested. See [`implementation-plan.md`](implementation-plan.md) for the full technical specification and roadmap.
+**v0.1.0** — the core framework, plugin system, three plugins, three adapters, and
+the VS Code extension are implemented and tested. See
+[`CLAUDE.md`](CLAUDE.md) for an architecture overview and the package layout.
 
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md). Security issues: see [SECURITY.md](SECURITY.md).
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[Code of Conduct](CODE_OF_CONDUCT.md). Security issues: [SECURITY.md](SECURITY.md).
 
 ## License
 
-Licensed under the [Apache License, Version 2.0](LICENSE).
+[Apache License 2.0](LICENSE).
