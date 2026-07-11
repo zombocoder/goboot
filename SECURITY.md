@@ -13,8 +13,8 @@ release line is supported.
 Instead, report them privately using one of:
 
 - GitHub's [private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)
-  (the **Report a vulnerability** button under the repository's *Security* tab), or
-- email to **zombocoder@gmail.com** with the subject line `goboot security`.
+  (the **Report a vulnerability** button under the repository's _Security_ tab), or
+- email to **root@zombocoder.com** with the subject line `goboot security`.
 
 Please include:
 
