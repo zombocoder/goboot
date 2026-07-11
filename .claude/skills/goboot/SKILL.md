@@ -28,7 +28,9 @@ Authoritative spec: `implementation-plan.md` (referenced by `§` throughout the 
    ```
 3. The generated `zz_goboot_wiring.gen.go` provides `buildComponents(...)`, `RegisterRoutes`, `NewApplication`, etc. Wire it into your `main` and run.
 
-CLI: `generate`, `validate` (analyze, no write), `graph --format mermaid|dot|json|text`, `clean`, `doctor`, `init`, `version`. Useful flags on generate/validate: `-profile prod,staging`, `-property key=value`, `-dialect postgres|question`, `-strict`, `-tags`.
+CLI: `generate`, `validate` (analyze, no write), `graph --format mermaid|dot|json|text`, `clean`, `doctor`, `init`, `plugins` (list configured vs. linked), `version`. Useful flags on generate/validate: `-profile prod,staging`, `-property key=value`, `-dialect postgres|question|mysql|sqlserver`, `-strict`, `-tags`.
+
+**Plugins are compile-time** (§46): a plugin is a Go module linked into the CLI, not loaded at runtime. The importable `github.com/zombocoder/goboot/cli` package exposes `cli.Main(pluginA.New(), ...)`; the default `cmd/goboot` binary injects none. List plugins in `goboot.yaml` under `plugins:` (shorthand `module@version` or an explicit `{module, version, import, new}` mapping) and goboot builds a plugin-aware binary from that list. Each plugin repo exports a constructor (default `New`) returning a `plugin.Plugin`; `plugin.APIVersion` is the contract version.
 
 ## Annotation syntax
 

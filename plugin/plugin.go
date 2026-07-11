@@ -20,6 +20,13 @@ import (
 	"github.com/zombocoder/goboot/sqlgen"
 )
 
+// APIVersion is the version of the plugin contract — the plugin, model, and
+// sqlgen APIs a plugin links against. It tracks the core module's minor version.
+// A plugin built against an incompatible major fails to compile (compile-time
+// safety), so this constant is used by tooling to warn about a mismatch before
+// the build rather than to gate anything at runtime (§46.5).
+const APIVersion = "0.1"
+
 // Plugin is the base every plugin implements: a stable name and version (§46.1).
 type Plugin interface {
 	// Name uniquely identifies the plugin within a host.

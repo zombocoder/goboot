@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"flag"
@@ -21,6 +21,16 @@ generation:
   package: generated
   clean: true
   strict: false
+
+# Compile-time plugins to link into the CLI (native drivers, generators,
+# annotations). goboot builds a plugin-aware binary from this list. Use the
+# shorthand "module@version", or the explicit form for a custom import/constructor.
+# plugins:
+#   - github.com/acme/goboot-plugin-pgx@v0.2.0
+#   - module: github.com/acme/goboot-redis
+#     version: v1.3.1
+#     import: github.com/acme/goboot-redis/gobootx
+#     new: New
 `
 
 func cmdInit(args []string, stdout, stderr io.Writer) int {
