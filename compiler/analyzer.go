@@ -42,18 +42,37 @@ var componentKind = []struct {
 	{"Component", model.ComponentGeneric},
 }
 
+// Options configures conditional analysis (§29): which profiles are active and
+// the property values used to evaluate @ConditionalOnProperty. The zero value
+// (no active profiles, no properties) includes only unconditional components and
+// those whose conditions hold trivially.
+type Options struct {
+	// Profiles is the set of active profiles.
+	Profiles []string
+	// Properties supplies values for @ConditionalOnProperty evaluation.
+	Properties map[string]string
+}
+
 // analysis accumulates state across the discovery, resolution, and graph phases.
 type analysis struct {
 	diags    []*annotation.Diagnostic
 	appCount int
+	opts     Options
 }
 
-// Analyze performs semantic analysis (§37.5–§37.7) over a scan result: it
-// discovers components and their constructors, resolves the dependency graph,
-// and reports diagnostics. Scan diagnostics are carried through so callers see
-// a single combined list.
+// Analyze performs semantic analysis with no active profiles or properties. It
+// is the convenience form of AnalyzeWith.
 func Analyze(scan *ScanResult) *AnalysisResult {
-	a := &analysis{}
+	return AnalyzeWith(scan, Options{})
+}
+
+// AnalyzeWith performs semantic analysis (§37.5–§37.7) over a scan result: it
+// discovers components and their constructors, evaluates conditions and profiles
+// to select the active components (§29), resolves the dependency graph, and
+// reports diagnostics. Scan diagnostics are carried through so callers see a
+// single combined list.
+func AnalyzeWith(scan *ScanResult, opts Options) *AnalysisResult {
+	a := &analysis{opts: opts}
 	a.diags = append(a.diags, scan.Diagnostics...)
 
 	app := &model.Application{}
@@ -61,6 +80,10 @@ func Analyze(scan *ScanResult) *AnalysisResult {
 		a.discover(decl, app)
 	}
 	a.checkAppRoot()
+	// Drop components whose profiles or conditions are not satisfied before any
+	// further analysis, so proxies, routes, and resolution only see the active
+	// set (§29).
+	applyConditions(app, opts)
 	// Synthesize interface proxies before resolution so that intercepted
 	// services are reached through their proxy and concrete injection is caught
 	// (§24).
@@ -171,6 +194,7 @@ func (a *analysis) discoverComponent(decl *Declaration, app *model.Application) 
 		Primary:      decl.Has("Primary"),
 		Constructor:  ctor,
 		Dependencies: append([]model.Dependency(nil), ctor.Params...),
+		Conditions:   extractConditions(decl),
 		Position:     decl.Pos,
 	}
 	// A service may declare the interface it is exposed as (§24.2), which the
@@ -214,6 +238,7 @@ func (a *analysis) discoverNut(decl *Declaration, app *model.Application) {
 		Primary:      decl.Has("Primary"),
 		Constructor:  ctor,
 		Dependencies: append([]model.Dependency(nil), ctor.Params...),
+		Conditions:   extractConditions(decl),
 		Position:     decl.Pos,
 	})
 }

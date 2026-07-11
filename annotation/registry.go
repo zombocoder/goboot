@@ -183,6 +183,20 @@ func coreDefinitions() []*Definition {
 		{Name: "PostConstruct", Targets: []Target{TargetMethod}},
 		{Name: "PreDestroy", Targets: []Target{TargetMethod}},
 
+		// ---- Conditions and profiles ------------------------------------
+		{Name: "Profile", Targets: componentAndProviderTargets(),
+			Positional: &ArgumentDefinition{Type: ArgStringArray, Required: true}},
+		{Name: "ConditionalOnProperty", Targets: componentAndProviderTargets(),
+			Arguments: map[string]ArgumentDefinition{
+				"name":           required(ArgString),
+				"havingValue":    arg(ArgString),
+				"matchIfMissing": arg(ArgBoolean),
+			}},
+		{Name: "ConditionalOnNut", Targets: componentAndProviderTargets(),
+			Arguments: map[string]ArgumentDefinition{"type": required(ArgString)}},
+		{Name: "ConditionalOnMissingNut", Targets: componentAndProviderTargets(),
+			Arguments: map[string]ArgumentDefinition{"type": required(ArgString)}},
+
 		// ---- Interception (service proxies) -----------------------------
 		{Name: "Transactional", Targets: []Target{TargetMethod, TargetType},
 			Arguments: map[string]ArgumentDefinition{
@@ -204,6 +218,12 @@ func coreDefinitions() []*Definition {
 			Positional: &ArgumentDefinition{Type: ArgString},
 			Arguments:  map[string]ArgumentDefinition{"file": arg(ArgString)}},
 	}
+}
+
+// componentAndProviderTargets is the set of declarations a condition or profile
+// annotation may be attached to: component types and nut/bean provider funcs.
+func componentAndProviderTargets() []Target {
+	return []Target{TargetStruct, TargetType, TargetInterface, TargetFunction, TargetMethod}
 }
 
 func methodMappingArgs() map[string]ArgumentDefinition {

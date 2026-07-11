@@ -43,7 +43,8 @@ func (a *analysis) discoverConfigProperties(decl *Declaration, app *model.Applic
 			ReturnsError: true,
 			ConfigLoader: true,
 		},
-		Position: decl.Pos,
+		Conditions: extractConditions(decl),
+		Position:   decl.Pos,
 	})
 }
 

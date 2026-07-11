@@ -143,6 +143,9 @@ type Component struct {
 	// generated from @Query/@Exec methods (§27.2); nil for component-mode
 	// repositories.
 	Repository *RepositoryInfo
+	// Conditions are the profile and conditional requirements that gate the
+	// component's inclusion (§29).
+	Conditions Conditions
 	// PostConstruct is the component's @PostConstruct hook, or nil.
 	PostConstruct *LifecycleMethod
 	// PreDestroy is the component's @PreDestroy hook, or nil.
