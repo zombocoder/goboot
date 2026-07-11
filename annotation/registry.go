@@ -183,6 +183,15 @@ func coreDefinitions() []*Definition {
 		{Name: "PostConstruct", Targets: []Target{TargetMethod}},
 		{Name: "PreDestroy", Targets: []Target{TargetMethod}},
 
+		// ---- Scheduling -------------------------------------------------
+		{Name: "Scheduled", Targets: []Target{TargetMethod},
+			Arguments: map[string]ArgumentDefinition{
+				"fixedRate":    arg(ArgAny), // integer with timeUnit, or a duration string
+				"fixedDelay":   arg(ArgAny),
+				"initialDelay": arg(ArgAny),
+				"timeUnit":     arg(ArgStringOrIdent),
+			}},
+
 		// ---- Conditions and profiles ------------------------------------
 		{Name: "Profile", Targets: componentAndProviderTargets(),
 			Positional: &ArgumentDefinition{Type: ArgStringArray, Required: true}},

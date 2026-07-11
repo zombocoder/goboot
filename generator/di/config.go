@@ -20,6 +20,7 @@ type features struct {
 	hasLifecycle bool
 	hasProxies   bool
 	hasRepos     bool
+	hasScheduled bool
 }
 
 // detectFeatures inspects the application for configuration properties, routes,
@@ -39,6 +40,9 @@ func detectFeatures(app *model.Application) features {
 		}
 		if c.Repository != nil {
 			f.hasRepos = true
+		}
+		if len(c.Scheduled) > 0 {
+			f.hasScheduled = true
 		}
 	}
 	return f

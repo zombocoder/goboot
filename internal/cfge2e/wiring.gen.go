@@ -53,5 +53,5 @@ func NewApplication(configSource config.Source) (*runtime.Application, error) {
 		return nil, err
 	}
 	lc := buildLifecycle(components)
-	return &runtime.Application{Lifecycle: lc}, nil
+	return &runtime.Application{Lifecycle: lc, Scheduler: nil}, nil
 }

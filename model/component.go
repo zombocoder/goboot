@@ -150,6 +150,8 @@ type Component struct {
 	PostConstruct *LifecycleMethod
 	// PreDestroy is the component's @PreDestroy hook, or nil.
 	PreDestroy *LifecycleMethod
+	// Scheduled lists the component's @Scheduled methods, in declaration order.
+	Scheduled []ScheduledMethod
 	// Position is the source location of the component declaration.
 	Position token.Position
 }

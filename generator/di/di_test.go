@@ -256,6 +256,61 @@ func analyzeRepoApp(t *testing.T) *compiler.AnalysisResult {
 	return res
 }
 
+// TestSchedE2EWiringUpToDate guards the committed scheduler integration wiring
+// and asserts the scheduler sections are present.
+func TestSchedE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/schedtick")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	src, err := Generate(res.App, res.Graph, Options{Package: "schede2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		"func buildScheduler(components *Components) *runtime.Scheduler",
+		"sched.Register(runtime.ScheduledTask{",
+		"5000000,", // 5ms in nanoseconds
+		"return components.Ticker.Tick(ctx)",
+		"Scheduler: sched",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated scheduler wiring missing %q", want)
+		}
+	}
+	path := filepath.Join("..", "..", "internal", "schede2e", "wiring.gen.go")
+	committed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/schede2e/wiring.gen.go is stale; regenerate it from the schedtick example")
+	}
+}
+
+// TestScheduledTimeUnitCompilesToDuration checks the fixedRate+timeUnit form
+// (2 MINUTES) renders as the correct nanosecond interval.
+func TestScheduledTimeUnitCompilesToDuration(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/schedapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	src, err := Generate(res.App, res.Graph, Options{Package: "schedapp"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	if !strings.Contains(src, "120000000000") {
+		t.Errorf("fixedRate=2 MINUTES should render as 120000000000 ns")
+	}
+	if !strings.Contains(src, "InitialDelay:") || !strings.Contains(src, "5000000000") {
+		t.Errorf("initialDelay=5s should render as 5000000000 ns")
+	}
+}
+
 // TestProxyE2EWiringUpToDate guards the committed service-proxy integration
 // wiring against the generator and asserts the proxy sections are present.
 func TestProxyE2EWiringUpToDate(t *testing.T) {
