@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Add the goboot logo as the extension icon.
+
 ## 0.1.0
 
 - Initial release.

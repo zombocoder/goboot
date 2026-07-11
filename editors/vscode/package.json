@@ -2,7 +2,7 @@
   "name": "goboot-annotations",
   "displayName": "goboot Annotations",
   "description": "Syntax highlighting and snippets for goboot annotations in Go doc comments (// @Service, // @GetMapping, // @Query, ...).",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "zombocoder",
   "license": "Apache-2.0",
   "engines": {
