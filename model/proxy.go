@@ -26,6 +26,18 @@ type InterceptedMethod struct {
 	Timeout time.Duration
 	// Retry, when non-nil, retries the call on error per the policy (§36.1).
 	Retry *RetryPolicy
+	// Authorize, when non-nil, checks authorization before invoking the target
+	// (§34).
+	Authorize *AuthorizeSpec
+}
+
+// AuthorizeSpec mirrors @Authorize/@RolesAllowed for the generator to render an
+// authorization check (§34.1).
+type AuthorizeSpec struct {
+	Roles       []string
+	Permissions []string
+	// Mode is "any" (default) or "all".
+	Mode string
 }
 
 // RetryPolicy mirrors the @Retry arguments (§36.1) for the generator to render
@@ -48,5 +60,5 @@ type TxOptions struct {
 
 // Intercepts reports whether the method requests any interception.
 func (m InterceptedMethod) Intercepts() bool {
-	return m.Traced || m.Timed || m.Transactional || m.Timeout > 0 || m.Retry != nil
+	return m.Traced || m.Timed || m.Transactional || m.Timeout > 0 || m.Retry != nil || m.Authorize != nil
 }

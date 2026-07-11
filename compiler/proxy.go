@@ -29,7 +29,7 @@ const (
 )
 
 // interceptAnnotations are the method annotations that trigger proxying.
-var interceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry"}
+var interceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry", "Authorize", "RolesAllowed"}
 
 // resolveInterface looks up the interface named by @Service(implements=...) in
 // the service's package and returns its type.
@@ -187,7 +187,41 @@ func (a *analysis) interceptedMethod(decl *Declaration) (model.InterceptedMethod
 	if ann, ok := decl.Find("Retry"); ok {
 		m.Retry = retryPolicy(ann)
 	}
+	m.Authorize = authorizeSpec(decl)
 	return m, true
+}
+
+// authorizeSpec reads @Authorize/@RolesAllowed into an AuthorizeSpec, or nil.
+func authorizeSpec(decl *Declaration) *model.AuthorizeSpec {
+	spec := &model.AuthorizeSpec{}
+	found := false
+	if ann, ok := decl.Find("Authorize"); ok {
+		found = true
+		spec.Roles = arrayArg(ann, "roles")
+		spec.Permissions = arrayArg(ann, "permissions")
+		if s, ok := stringArgValue(ann, "mode"); ok {
+			spec.Mode = s
+		}
+	}
+	if ann, ok := decl.Find("RolesAllowed"); ok {
+		found = true
+		if v, ok := ann.Positional(); ok {
+			spec.Roles = append(spec.Roles, stringList(v)...)
+		}
+	}
+	if !found {
+		return nil
+	}
+	return spec
+}
+
+// arrayArg extracts a []string from an annotation array argument.
+func arrayArg(ann annotation.Annotation, name string) []string {
+	v, ok := ann.Arg(name)
+	if !ok {
+		return nil
+	}
+	return stringList(v)
 }
 
 // retryPolicy reads @Retry arguments into a model.RetryPolicy.

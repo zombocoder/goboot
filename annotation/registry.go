@@ -219,6 +219,16 @@ func coreDefinitions() []*Definition {
 		{Name: "Timed", Targets: []Target{TargetMethod, TargetType},
 			Arguments: map[string]ArgumentDefinition{"name": arg(ArgString)}},
 
+		// ---- Security ---------------------------------------------------
+		{Name: "Authorize", Targets: []Target{TargetMethod, TargetType},
+			Arguments: map[string]ArgumentDefinition{
+				"roles":       arg(ArgStringArray),
+				"permissions": arg(ArgStringArray),
+				"mode":        enum("any", "all"),
+			}},
+		{Name: "RolesAllowed", Targets: []Target{TargetMethod, TargetType},
+			Positional: &ArgumentDefinition{Type: ArgStringArray, Required: true}},
+
 		// ---- Resilience -------------------------------------------------
 		{Name: "Timeout", Targets: []Target{TargetMethod, TargetType},
 			Positional: &ArgumentDefinition{Type: ArgDuration, Required: true}},

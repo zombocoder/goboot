@@ -311,6 +311,37 @@ func TestScheduledTimeUnitCompilesToDuration(t *testing.T) {
 	}
 }
 
+// TestAuthE2EWiringUpToDate guards the committed authorization wiring and
+// asserts the @Authorize interceptor is rendered.
+func TestAuthE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/authapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	src, err := Generate(res.App, res.Graph, Options{Package: "authe2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		`p.authorizer.Authorize(a0, runtime.AuthorizationRequest{Roles: []string{"admin"}, Mode: runtime.AuthorizationModeAll})`,
+		`Roles: []string{"reader"}`,
+		"authorizer  runtime.Authorizer",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated auth wiring missing %q", want)
+		}
+	}
+	committed, err := os.ReadFile(filepath.Join("..", "..", "internal", "authe2e", "wiring.gen.go"))
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/authe2e/wiring.gen.go is stale; regenerate it from the authapp example")
+	}
+}
+
 // TestResilienceE2EWiringUpToDate guards the committed resilience wiring and
 // asserts the @Retry/@Timeout interceptors are rendered.
 func TestResilienceE2EWiringUpToDate(t *testing.T) {

@@ -54,12 +54,13 @@ func renderProxyType(proxy, target *model.Component, iface *types.Interface, im 
 	fmt.Fprintf(&b, "\ttransaction %s\n", rt("TransactionManager"))
 	fmt.Fprintf(&b, "\ttracer      %s\n", rt("Tracer"))
 	fmt.Fprintf(&b, "\tmetrics     %s\n", rt("MethodMetrics"))
+	fmt.Fprintf(&b, "\tauthorizer  %s\n", rt("Authorizer"))
 	b.WriteString("}\n\n")
 
 	// Constructor.
 	fmt.Fprintf(&b, "// New%s builds the %s.\n", proxyName, proxyName)
 	fmt.Fprintf(&b, "func New%s(target %s, deps %s) *%s {\n", proxyName, targetType, rt("ProxyDependencies"), proxyName)
-	fmt.Fprintf(&b, "\treturn &%s{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics}\n", proxyName)
+	fmt.Fprintf(&b, "\treturn &%s{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer}\n", proxyName)
 	b.WriteString("}\n\n")
 
 	// Methods, in the interface's (name-sorted) order for deterministic output.
@@ -115,9 +116,16 @@ func renderInterceptedMethod(proxyName, targetTypeName, name string, sig *types.
 		b.WriteString("\tdefer func() { span.End(err) }()\n")
 	}
 
-	// Core: target invocation, wrapped in a transaction and/or retried. Retry is
-	// outside the transaction so each attempt gets its own (§25).
-	b.WriteString(renderCore(name, ctxVar, ctxType, restArgs, valueNames, m, rt))
+	// Authorization gates the call; a rejection skips the core and is recorded by
+	// metrics like any other failure (§25, §34).
+	core := renderCore(name, ctxVar, ctxType, restArgs, valueNames, m, rt)
+	if m.Authorize != nil {
+		fmt.Fprintf(&b, "\tif err = p.authorizer.Authorize(%s, %s); err == nil {\n", ctxVar, renderAuthRequest(m.Authorize, rt))
+		b.WriteString(core)
+		b.WriteString("\t}\n")
+	} else {
+		b.WriteString(core)
+	}
 
 	// Metrics record the final outcome (§35.2).
 	if m.Timed {
@@ -171,6 +179,21 @@ func renderCore(method, ctxVar, ctxType, restArgs string, valueNames []string, m
 		}
 		return fmt.Sprintf("\t%s, err = %s\n", strings.Join(valueNames, ", "), call)
 	}
+}
+
+// renderAuthRequest renders a runtime.AuthorizationRequest literal (§34.2).
+func renderAuthRequest(a *model.AuthorizeSpec, rt func(string) string) string {
+	var fields []string
+	if len(a.Roles) > 0 {
+		fields = append(fields, "Roles: "+stringSliceLit(a.Roles))
+	}
+	if len(a.Permissions) > 0 {
+		fields = append(fields, "Permissions: "+stringSliceLit(a.Permissions))
+	}
+	if a.Mode == "all" {
+		fields = append(fields, "Mode: "+rt("AuthorizationModeAll"))
+	}
+	return rt("AuthorizationRequest") + "{" + strings.Join(fields, ", ") + "}"
 }
 
 // renderRetryPolicy renders a runtime.RetryPolicy literal, omitting zero fields.
