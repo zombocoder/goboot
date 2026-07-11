@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/zombocoder/goboot/annotation"
 	"github.com/zombocoder/goboot/compiler"
@@ -101,7 +102,7 @@ func cmdVersion(_ []string, stdout, _ io.Writer) int {
 // annotations and analyzers through the host, and prints diagnostics to stderr.
 // It returns the analysis result, the plugin host, and the number of blocking
 // errors (warnings counted as errors when strict).
-func analyzeCommon(dir string, patterns []string, tags string, strict bool, stderr io.Writer) (*compiler.AnalysisResult, *plugin.Registry, int) {
+func analyzeCommon(dir string, patterns []string, tags string, strict bool, opts compiler.Options, stderr io.Writer) (*compiler.AnalysisResult, *plugin.Registry, int) {
 	host := pluginHost()
 	registry, regDiags := host.AnnotationRegistry()
 
@@ -114,7 +115,7 @@ func analyzeCommon(dir string, patterns []string, tags string, strict bool, stde
 		fmt.Fprintf(stderr, "goboot: %v\n", err)
 		return nil, host, 1
 	}
-	res := compiler.Analyze(scan)
+	res := compiler.AnalyzeWith(scan, opts)
 
 	// Combine core, plugin-registration, and plugin-analyzer diagnostics.
 	diags := append([]*annotation.Diagnostic(nil), regDiags...)
@@ -144,6 +145,45 @@ func printDiagnostics(w io.Writer, diags []*annotation.Diagnostic, strict bool) 
 		fmt.Fprintf(w, "%s: %s\n", severity, d.Error())
 	}
 	return blocking
+}
+
+// conditionOptions builds analysis options from the comma-separated -profile
+// and -property flag values. -property items are key=value pairs.
+func conditionOptions(profile, property string) compiler.Options {
+	var opts compiler.Options
+	for _, p := range splitCSV(profile) {
+		opts.Profiles = append(opts.Profiles, p)
+	}
+	for _, kv := range splitCSV(property) {
+		if eq := indexByte(kv, '='); eq >= 0 {
+			if opts.Properties == nil {
+				opts.Properties = map[string]string{}
+			}
+			opts.Properties[kv[:eq]] = kv[eq+1:]
+		}
+	}
+	return opts
+}
+
+// splitCSV splits a comma-separated list, trimming spaces and dropping empties.
+func splitCSV(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if t := strings.TrimSpace(part); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// indexByte returns the index of b in s, or -1.
+func indexByte(s string, b byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == b {
+			return i
+		}
+	}
+	return -1
 }
 
 // lessPosition orders diagnostics by file, line, then column.

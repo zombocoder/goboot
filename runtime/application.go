@@ -14,6 +14,8 @@ type Application struct {
 	Server *http.Server
 	// Lifecycle manages component start/stop hooks; may be nil.
 	Lifecycle *Lifecycle
+	// Scheduler runs @Scheduled background tasks; may be nil.
+	Scheduler *Scheduler
 }
 
 // Run starts the lifecycle, serves HTTP, and blocks until the context is
@@ -24,6 +26,9 @@ func (a *Application) Run(ctx context.Context) error {
 		if err := a.Lifecycle.Start(ctx); err != nil {
 			return err
 		}
+	}
+	if a.Scheduler != nil {
+		a.Scheduler.Start(ctx)
 	}
 
 	serverErr := make(chan error, 1)
@@ -41,6 +46,9 @@ func (a *Application) Run(ctx context.Context) error {
 	case <-ctx.Done():
 		return a.Shutdown(context.WithoutCancel(ctx))
 	case err := <-serverErr:
+		if a.Scheduler != nil {
+			a.Scheduler.Stop()
+		}
 		stopErr := a.stopLifecycle(context.Background())
 		if err != nil {
 			return fmt.Errorf("http server: %w", err)
@@ -58,6 +66,11 @@ func (a *Application) Shutdown(ctx context.Context) error {
 	}
 	shutdownCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+
+	// Stop scheduled tasks before tearing down the server and components.
+	if a.Scheduler != nil {
+		a.Scheduler.Stop()
+	}
 
 	var errs []error
 	if a.Server != nil {

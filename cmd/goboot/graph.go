@@ -7,6 +7,7 @@ import (
 	"io"
 	"sort"
 
+	"github.com/zombocoder/goboot/compiler"
 	"github.com/zombocoder/goboot/graph"
 	"github.com/zombocoder/goboot/model"
 )
@@ -31,7 +32,7 @@ func cmdGraph(args []string, stdout, stderr io.Writer) int {
 	patterns := resolvePatterns(fs.Args(), cfg)
 
 	// Graph output tolerates non-fatal diagnostics; only a load failure aborts.
-	res, _, _ := analyzeCommon(*dir, patterns, *tags, false, stderr)
+	res, _, _ := analyzeCommon(*dir, patterns, *tags, false, compiler.Options{}, stderr)
 	if res == nil {
 		return 1
 	}

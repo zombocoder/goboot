@@ -21,14 +21,16 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("generate", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	var (
-		dir     = fs.String("dir", ".", "working directory containing go.mod and goboot.yaml")
-		output  = fs.String("output", "", "output directory (overrides goboot.yaml)")
-		pkg     = fs.String("package", "", "generated package name (overrides goboot.yaml)")
-		tags    = fs.String("tags", "", "comma-separated build tags")
-		strict  = fs.Bool("strict", false, "treat warnings as errors")
-		clean   = fs.Bool("clean", false, "remove existing generated files first")
-		dialect = fs.String("dialect", "", "SQL dialect for repositories: postgres (default) or question")
-		verbose = fs.Bool("verbose", false, "print progress")
+		dir      = fs.String("dir", ".", "working directory containing go.mod and goboot.yaml")
+		output   = fs.String("output", "", "output directory (overrides goboot.yaml)")
+		pkg      = fs.String("package", "", "generated package name (overrides goboot.yaml)")
+		tags     = fs.String("tags", "", "comma-separated build tags")
+		strict   = fs.Bool("strict", false, "treat warnings as errors")
+		clean    = fs.Bool("clean", false, "remove existing generated files first")
+		dialect  = fs.String("dialect", "", "SQL dialect for repositories: postgres (default) or question")
+		profile  = fs.String("profile", "", "comma-separated active profiles (§29.3)")
+		property = fs.String("property", "", "comma-separated key=value pairs for @ConditionalOnProperty")
+		verbose  = fs.Bool("verbose", false, "print progress")
 	)
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -45,7 +47,7 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 	strictMode := *strict || cfg.Generation.Strict
 	cleanFirst := *clean || cfg.Generation.Clean
 
-	res, host, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, stderr)
+	res, host, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, conditionOptions(*profile, *property), stderr)
 	if res == nil {
 		return 1
 	}

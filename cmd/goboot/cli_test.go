@@ -248,3 +248,26 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+func TestValidateWithProfile(t *testing.T) {
+	// Without the profile, profile-gated components are excluded.
+	_, outNo, _ := runCLI("validate", "-dir", compilerDir, "./testdata/conditions")
+	// With the profile, more components are active.
+	_, outProd, _ := runCLI("validate", "-dir", compilerDir, "-profile", "production", "./testdata/conditions")
+	if outNo == outProd {
+		t.Errorf("profile should change the active component set:\nno=%q\nprod=%q", outNo, outProd)
+	}
+	if !strings.Contains(outProd, "5 component") {
+		t.Errorf("production profile should activate 5 components, got %q", outProd)
+	}
+	if !strings.Contains(outNo, "3 component") {
+		t.Errorf("no profile should leave 3 components, got %q", outNo)
+	}
+}
+
+func TestValidateWithProperty(t *testing.T) {
+	_, out, _ := runCLI("validate", "-dir", compilerDir, "-property", "cache.enabled=true", "./testdata/conditions")
+	if !strings.Contains(out, "4 component") {
+		t.Errorf("cache.enabled=true should activate cacheEnabled (4 components), got %q", out)
+	}
+}

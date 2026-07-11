@@ -50,6 +50,7 @@ func (a *analysis) discoverRepositoryInterface(decl *Declaration, app *model.App
 			RepositoryImpl: true,
 		},
 		Repository: &model.RepositoryInfo{},
+		Conditions: extractConditions(decl),
 		Position:   decl.Pos,
 	})
 }

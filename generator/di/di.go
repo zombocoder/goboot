@@ -76,6 +76,9 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 	if feats.hasRepos {
 		im.add(dbPath, "db")
 	}
+	if feats.hasScheduled {
+		im.add(runtimePath, "runtime")
+	}
 	reserved := map[string]bool{"err": true, "out": true}
 	if feats.hasConfig {
 		reserved["configSource"] = true
@@ -108,6 +111,7 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 		repoPart:      renderRepositories(app, im, opts.Dialect),
 		httpPart:      renderHTTP(app, byID, im),
 		lifecyclePart: renderLifecycle(app, bindings, byID, im, feats),
+		schedulerPart: renderScheduler(app, bindings, im, feats),
 		appPart:       renderApplication(app, im, feats),
 	}
 	src := assemble(sec, im)
@@ -291,6 +295,7 @@ type sections struct {
 	repoPart      string
 	httpPart      string
 	lifecyclePart string
+	schedulerPart string
 	appPart       string
 }
 
@@ -311,7 +316,7 @@ func assemble(sec sections, im *imports) string {
 	}
 	b.WriteString(sec.returnStmt)
 	b.WriteString("}\n")
-	for _, part := range []string{sec.configLoaders, sec.proxyPart, sec.repoPart, sec.httpPart, sec.lifecyclePart, sec.appPart} {
+	for _, part := range []string{sec.configLoaders, sec.proxyPart, sec.repoPart, sec.httpPart, sec.lifecyclePart, sec.schedulerPart, sec.appPart} {
 		if part != "" {
 			b.WriteString("\n")
 			b.WriteString(part)

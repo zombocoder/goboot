@@ -108,5 +108,5 @@ func NewApplication(deps runtime.HTTPHandlerDependencies, addr string) (*runtime
 	mux := http.NewServeMux()
 	RegisterRoutes(mux, components, deps)
 	server := &http.Server{Addr: addr, Handler: mux}
-	return &runtime.Application{Server: server, Lifecycle: lc}, nil
+	return &runtime.Application{Server: server, Lifecycle: lc, Scheduler: nil}, nil
 }

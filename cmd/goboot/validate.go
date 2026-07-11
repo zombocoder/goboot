@@ -10,9 +10,11 @@ func cmdValidate(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	var (
-		dir    = fs.String("dir", ".", "working directory containing go.mod and goboot.yaml")
-		tags   = fs.String("tags", "", "comma-separated build tags")
-		strict = fs.Bool("strict", false, "treat warnings as errors")
+		dir      = fs.String("dir", ".", "working directory containing go.mod and goboot.yaml")
+		tags     = fs.String("tags", "", "comma-separated build tags")
+		strict   = fs.Bool("strict", false, "treat warnings as errors")
+		profile  = fs.String("profile", "", "comma-separated active profiles (§29.3)")
+		property = fs.String("property", "", "comma-separated key=value pairs for @ConditionalOnProperty")
 	)
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -26,7 +28,7 @@ func cmdValidate(args []string, stdout, stderr io.Writer) int {
 	patterns := resolvePatterns(fs.Args(), cfg)
 	strictMode := *strict || cfg.Generation.Strict
 
-	res, _, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, stderr)
+	res, _, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, conditionOptions(*profile, *property), stderr)
 	if res == nil {
 		return 1
 	}

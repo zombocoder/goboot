@@ -42,15 +42,55 @@ func hookClosure(m *model.LifecycleMethod, recv, ctxType string) string {
 	if m == nil {
 		return "nil"
 	}
+	return methodClosure(m.MethodName, m.TakesContext, m.ReturnsError, recv, ctxType)
+}
+
+// methodClosure renders a func(ctx context.Context) error closure that invokes
+// recv.method, adapting the four supported signatures (§30.2). It is shared by
+// lifecycle hooks and scheduled tasks.
+func methodClosure(method string, takesContext, returnsError bool, recv, ctxType string) string {
 	arg := ""
-	if m.TakesContext {
+	if takesContext {
 		arg = "ctx"
 	}
-	call := fmt.Sprintf("%s.%s(%s)", recv, m.MethodName, arg)
-	if m.ReturnsError {
+	call := fmt.Sprintf("%s.%s(%s)", recv, method, arg)
+	if returnsError {
 		return fmt.Sprintf("func(ctx %s) error { return %s }", ctxType, call)
 	}
 	return fmt.Sprintf("func(ctx %s) error { %s; return nil }", ctxType, call)
+}
+
+// renderScheduler emits buildScheduler, which registers each component's
+// @Scheduled methods with a runtime.Scheduler (§4.2). It returns the empty
+// string when no component has a scheduled method.
+func renderScheduler(app *model.Application, bindings []*binding, im *imports, f features) string {
+	if !f.hasScheduled {
+		return ""
+	}
+	rt := func(sym string) string { return im.qualify(runtimePath, "runtime", sym) }
+	ctxType := im.qualify("context", "context", "Context")
+
+	var b strings.Builder
+	b.WriteString("// buildScheduler registers component @Scheduled tasks.\n")
+	fmt.Fprintf(&b, "func buildScheduler(components *Components) *%s {\n", rt("Scheduler"))
+	fmt.Fprintf(&b, "\tsched := %s()\n", rt("NewScheduler"))
+	for _, bd := range bindings {
+		for _, m := range bd.comp.Scheduled {
+			recv := "components." + bd.field
+			run := methodClosure(m.MethodName, m.TakesContext, m.ReturnsError, recv, ctxType)
+			name := bd.comp.Name + "." + m.MethodName
+			fmt.Fprintf(&b, "\tsched.Register(%s{\n", rt("ScheduledTask"))
+			fmt.Fprintf(&b, "\t\tName:         %q,\n", name)
+			fmt.Fprintf(&b, "\t\tInterval:     %d,\n", int64(m.Interval))
+			if m.InitialDelay > 0 {
+				fmt.Fprintf(&b, "\t\tInitialDelay: %d,\n", int64(m.InitialDelay))
+			}
+			fmt.Fprintf(&b, "\t\tRun:          %s,\n", run)
+			b.WriteString("\t})\n")
+		}
+	}
+	b.WriteString("\treturn sched\n}\n")
+	return b.String()
 }
 
 // renderApplication emits NewApplication, which builds the components, registers
@@ -58,7 +98,7 @@ func hookClosure(m *model.LifecycleMethod, recv, ctxType string) string {
 // Run (§32). It is emitted only when the application has routes or lifecycle
 // hooks; a pure dependency graph needs only buildComponents.
 func renderApplication(app *model.Application, im *imports, f features) string {
-	if !f.hasRoutes && !f.hasLifecycle {
+	if !f.hasRoutes && !f.hasLifecycle && !f.hasScheduled {
 		return ""
 	}
 	rt := func(sym string) string { return im.qualify(runtimePath, "runtime", sym) }
@@ -92,15 +132,20 @@ func renderApplication(app *model.Application, im *imports, f features) string {
 	} else {
 		fmt.Fprintf(&b, "\tvar lc *%s\n", rt("Lifecycle"))
 	}
+	scheduler := "nil"
+	if f.hasScheduled {
+		b.WriteString("\tsched := buildScheduler(components)\n")
+		scheduler = "sched"
+	}
 
 	if f.hasRoutes {
 		httpPkg := func(sym string) string { return im.qualify("net/http", "http", sym) }
 		fmt.Fprintf(&b, "\tmux := %s()\n", httpPkg("NewServeMux"))
 		b.WriteString("\tRegisterRoutes(mux, components, deps)\n")
 		fmt.Fprintf(&b, "\tserver := &%s{Addr: addr, Handler: mux}\n", httpPkg("Server"))
-		fmt.Fprintf(&b, "\treturn &%s{Server: server, Lifecycle: lc}, nil\n", rt("Application"))
+		fmt.Fprintf(&b, "\treturn &%s{Server: server, Lifecycle: lc, Scheduler: %s}, nil\n", rt("Application"), scheduler)
 	} else {
-		fmt.Fprintf(&b, "\treturn &%s{Lifecycle: lc}, nil\n", rt("Application"))
+		fmt.Fprintf(&b, "\treturn &%s{Lifecycle: lc, Scheduler: %s}, nil\n", rt("Application"), scheduler)
 	}
 	b.WriteString("}\n")
 	return b.String()
