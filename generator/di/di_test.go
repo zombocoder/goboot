@@ -374,6 +374,40 @@ func TestResilienceE2EWiringUpToDate(t *testing.T) {
 	}
 }
 
+// TestObsE2EWiringUpToDate guards the committed observability wiring and asserts
+// the @Logged/@Audit interceptors are rendered.
+func TestObsE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/obsapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	src, err := Generate(res.App, res.Graph, Options{Package: "obse2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		`logDone := p.logger.Log(a0, "VaultService.Store", "debug")`,
+		"defer func() { logDone(err) }()",
+		`p.audit.Record(a0, runtime.AuditEvent{Method: "VaultService.Store", Action: "store", Resource: "secret"}, err)`,
+		"logger      runtime.MethodLogger",
+		"audit       runtime.AuditSink",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated observability wiring missing %q", want)
+		}
+	}
+	path := filepath.Join("..", "..", "internal", "obse2e", "wiring.gen.go")
+	committed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/obse2e/wiring.gen.go is stale; regenerate it from the obsapp example")
+	}
+}
+
 // TestProxyE2EWiringUpToDate guards the committed service-proxy integration
 // wiring against the generator and asserts the proxy sections are present.
 func TestProxyE2EWiringUpToDate(t *testing.T) {

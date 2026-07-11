@@ -218,6 +218,15 @@ func coreDefinitions() []*Definition {
 			Arguments: map[string]ArgumentDefinition{"name": arg(ArgString)}},
 		{Name: "Timed", Targets: []Target{TargetMethod, TargetType},
 			Arguments: map[string]ArgumentDefinition{"name": arg(ArgString)}},
+		{Name: "Logged", Targets: []Target{TargetMethod, TargetType},
+			Arguments: map[string]ArgumentDefinition{
+				"level": enum("debug", "info", "warn", "error"),
+			}},
+		{Name: "Audit", Targets: []Target{TargetMethod, TargetType},
+			Arguments: map[string]ArgumentDefinition{
+				"action":   arg(ArgString),
+				"resource": arg(ArgString),
+			}},
 
 		// ---- Security ---------------------------------------------------
 		{Name: "Authorize", Targets: []Target{TargetMethod, TargetType},

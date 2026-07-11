@@ -55,12 +55,14 @@ func renderProxyType(proxy, target *model.Component, iface *types.Interface, im 
 	fmt.Fprintf(&b, "\ttracer      %s\n", rt("Tracer"))
 	fmt.Fprintf(&b, "\tmetrics     %s\n", rt("MethodMetrics"))
 	fmt.Fprintf(&b, "\tauthorizer  %s\n", rt("Authorizer"))
+	fmt.Fprintf(&b, "\tlogger      %s\n", rt("MethodLogger"))
+	fmt.Fprintf(&b, "\taudit       %s\n", rt("AuditSink"))
 	b.WriteString("}\n\n")
 
 	// Constructor.
 	fmt.Fprintf(&b, "// New%s builds the %s.\n", proxyName, proxyName)
 	fmt.Fprintf(&b, "func New%s(target %s, deps %s) *%s {\n", proxyName, targetType, rt("ProxyDependencies"), proxyName)
-	fmt.Fprintf(&b, "\treturn &%s{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer}\n", proxyName)
+	fmt.Fprintf(&b, "\treturn &%s{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit}\n", proxyName)
 	b.WriteString("}\n\n")
 
 	// Methods, in the interface's (name-sorted) order for deterministic output.
@@ -114,6 +116,17 @@ func renderInterceptedMethod(proxyName, targetTypeName, name string, sig *types.
 		traceName := orDefault(m.TraceName, opName)
 		fmt.Fprintf(&b, "\t%s, span := p.tracer.Begin(%s, %s)\n", ctxVar, ctxVar, strconv.Quote(traceName))
 		b.WriteString("\tdefer func() { span.End(err) }()\n")
+	}
+
+	// Logging brackets the call, observing the returned error (§35.3).
+	if m.Logged {
+		fmt.Fprintf(&b, "\tlogDone := p.logger.Log(%s, %s, %s)\n", ctxVar, strconv.Quote(opName), strconv.Quote(orDefault(m.LogLevel, "info")))
+		b.WriteString("\tdefer func() { logDone(err) }()\n")
+	}
+
+	// Audit records the outcome of the action after it completes (§35.4).
+	if m.Audit != nil {
+		fmt.Fprintf(&b, "\tdefer func() { p.audit.Record(%s, %s, err) }()\n", ctxVar, renderAuditEvent(opName, m.Audit, rt))
 	}
 
 	// Authorization gates the call; a rejection skips the core and is recorded by
@@ -194,6 +207,18 @@ func renderAuthRequest(a *model.AuthorizeSpec, rt func(string) string) string {
 		fields = append(fields, "Mode: "+rt("AuthorizationModeAll"))
 	}
 	return rt("AuthorizationRequest") + "{" + strings.Join(fields, ", ") + "}"
+}
+
+// renderAuditEvent renders a runtime.AuditEvent literal for @Audit (§35.4).
+func renderAuditEvent(method string, a *model.AuditSpec, rt func(string) string) string {
+	fields := []string{"Method: " + strconv.Quote(method)}
+	if a.Action != "" {
+		fields = append(fields, "Action: "+strconv.Quote(a.Action))
+	}
+	if a.Resource != "" {
+		fields = append(fields, "Resource: "+strconv.Quote(a.Resource))
+	}
+	return rt("AuditEvent") + "{" + strings.Join(fields, ", ") + "}"
 }
 
 // renderRetryPolicy renders a runtime.RetryPolicy literal, omitting zero fields.

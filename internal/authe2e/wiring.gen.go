@@ -32,11 +32,13 @@ type AdminServiceProxy struct {
 	tracer      runtime.Tracer
 	metrics     runtime.MethodMetrics
 	authorizer  runtime.Authorizer
+	logger      runtime.MethodLogger
+	audit       runtime.AuditSink
 }
 
 // NewAdminServiceProxy builds the AdminServiceProxy.
 func NewAdminServiceProxy(target *authapp.AdminService, deps runtime.ProxyDependencies) *AdminServiceProxy {
-	return &AdminServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer}
+	return &AdminServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit}
 }
 
 func (p *AdminServiceProxy) DeleteAll(a0 context.Context) (err error) {
