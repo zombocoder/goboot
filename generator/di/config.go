@@ -19,6 +19,7 @@ type features struct {
 	hasRoutes    bool
 	hasLifecycle bool
 	hasProxies   bool
+	hasRepos     bool
 }
 
 // detectFeatures inspects the application for configuration properties, routes,
@@ -36,9 +37,16 @@ func detectFeatures(app *model.Application) features {
 		if c.Kind == model.ComponentProxy {
 			f.hasProxies = true
 		}
+		if c.Repository != nil {
+			f.hasRepos = true
+		}
 	}
 	return f
 }
+
+// dbPath is the import path of the goboot db package generated repositories
+// depend on.
+const dbPath = "github.com/zombocoder/goboot/runtime/db"
 
 // buildComponentsParam returns the parameter list for buildComponents: a config
 // source when the application has configuration properties and proxy
@@ -50,6 +58,9 @@ func buildComponentsParam(f features, im *imports) string {
 	}
 	if f.hasProxies {
 		params = append(params, "proxyDeps "+im.qualify(runtimePath, "runtime", "ProxyDependencies"))
+	}
+	if f.hasRepos {
+		params = append(params, "dbProvider "+im.qualify(dbPath, "db", "DBProvider"))
 	}
 	return strings.Join(params, ", ")
 }

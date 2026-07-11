@@ -73,6 +73,10 @@ func renderApplication(app *model.Application, im *imports, f features) string {
 		params = append(params, "proxyDeps "+rt("ProxyDependencies"))
 		buildArgs = append(buildArgs, "proxyDeps")
 	}
+	if f.hasRepos {
+		params = append(params, "dbProvider "+im.qualify(dbPath, "db", "DBProvider"))
+		buildArgs = append(buildArgs, "dbProvider")
+	}
 	if f.hasRoutes {
 		params = append(params, "deps "+rt("HTTPHandlerDependencies"), "addr string")
 	}

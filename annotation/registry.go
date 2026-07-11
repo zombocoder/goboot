@@ -195,6 +195,14 @@ func coreDefinitions() []*Definition {
 			Arguments: map[string]ArgumentDefinition{"name": arg(ArgString)}},
 		{Name: "Timed", Targets: []Target{TargetMethod, TargetType},
 			Arguments: map[string]ArgumentDefinition{"name": arg(ArgString)}},
+
+		// ---- Repository queries -----------------------------------------
+		{Name: "Query", Targets: []Target{TargetMethod},
+			Positional: &ArgumentDefinition{Type: ArgString},
+			Arguments:  map[string]ArgumentDefinition{"file": arg(ArgString)}},
+		{Name: "Exec", Targets: []Target{TargetMethod},
+			Positional: &ArgumentDefinition{Type: ArgString},
+			Arguments:  map[string]ArgumentDefinition{"file": arg(ArgString)}},
 	}
 }
 

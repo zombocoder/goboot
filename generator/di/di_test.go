@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/zombocoder/goboot/compiler"
+	"github.com/zombocoder/goboot/sqlgen"
 )
 
 var update = flag.Bool("update", false, "update golden files")
@@ -189,6 +190,70 @@ func TestCfgE2EWiringUpToDate(t *testing.T) {
 	if src != string(committed) {
 		t.Errorf("internal/cfge2e/wiring.gen.go is stale; regenerate it from the cfgapp example")
 	}
+}
+
+// TestRepoE2EWiringUpToDate guards the committed repository integration wiring
+// against the generator and asserts the repository sections are present.
+func TestRepoE2EWiringUpToDate(t *testing.T) {
+	res := analyzeRepoApp(t)
+	src, err := Generate(res.App, res.Graph, Options{Package: "repoe2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		"func buildComponents(dbProvider db.DBProvider)",
+		"type UserRepositoryImpl struct {",
+		"func NewUserRepositoryImpl(db db.DBProvider) *UserRepositoryImpl",
+		"r.db.DB(a0).QueryRowContext(a0, `SELECT id, name, email FROM users WHERE id = $1`, a1)",
+		"r.db.DB(a0).ExecContext(a0, `INSERT INTO users (id, name, email) VALUES ($1, $2, $3)`, a1, a2, a3)",
+		"return res.RowsAffected()",
+		"for rows.Next() {",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated repository wiring missing %q", want)
+		}
+	}
+	path := filepath.Join("..", "..", "internal", "repoe2e", "wiring.gen.go")
+	committed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/repoe2e/wiring.gen.go is stale; regenerate it from the repoapp example")
+	}
+}
+
+// TestRepositoryDialectSwap proves the driver seam: the same repository, with a
+// different dialect, produces ?-style placeholders instead of $n — no other
+// change to the generated code.
+func TestRepositoryDialectSwap(t *testing.T) {
+	res := analyzeRepoApp(t)
+	src, err := Generate(res.App, res.Graph, Options{Package: "repoe2e", Dialect: sqlgen.Question})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	if !strings.Contains(src, "WHERE id = ?`, a1)") {
+		t.Errorf("question dialect should render ? placeholders")
+	}
+	if strings.Contains(src, "WHERE id = $1") {
+		t.Errorf("question dialect should not render $n placeholders")
+	}
+}
+
+func analyzeRepoApp(t *testing.T) *compiler.AnalysisResult {
+	t.Helper()
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/repoapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	for _, d := range res.Diagnostics {
+		if d.Severity == 2 {
+			t.Fatalf("analysis error: %s", d.Error())
+		}
+	}
+	return res
 }
 
 // TestProxyE2EWiringUpToDate guards the committed service-proxy integration

@@ -70,6 +70,7 @@ func Analyze(scan *ScanResult) *AnalysisResult {
 	a.resolve(app)
 	a.discoverRoutes(scan, app)
 	a.discoverLifecycle(scan, app)
+	a.discoverRepositories(scan, app)
 
 	g := graph.Build(app.Components)
 	if _, cyc := g.ConstructionOrder(); cyc != nil {
@@ -87,6 +88,12 @@ func (a *analysis) discover(decl *Declaration, app *model.Application) {
 	// A bean provider is a function or method annotated @Bean.
 	if decl.Has("Bean") && (decl.Target == annotation.TargetFunction || decl.Target == annotation.TargetMethod) {
 		a.discoverBean(decl, app)
+		return
+	}
+	// A generated repository is an annotated interface whose implementation is
+	// produced from its @Query/@Exec methods.
+	if generatedRepository(decl) {
+		a.discoverRepositoryInterface(decl, app)
 		return
 	}
 	if decl.Target == annotation.TargetStruct || decl.Target == annotation.TargetType {

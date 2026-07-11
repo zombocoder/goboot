@@ -93,15 +93,19 @@ func (s *scanner) scanTypeDecl(pkg *packages.Package, gen *ast.GenDecl, out *Pac
 
 		switch t := ts.Type.(type) {
 		case *ast.StructType:
-			s.scanFields(pkg, t.Fields, annotation.TargetField, out)
+			s.scanFields(pkg, t.Fields, annotation.TargetField, obj, out)
 		case *ast.InterfaceType:
-			s.scanFields(pkg, t.Methods, annotation.TargetMethod, out)
+			// Interface methods record their enclosing interface as the
+			// receiver so downstream passes can link them (e.g. repository
+			// query methods to their interface).
+			s.scanFields(pkg, t.Methods, annotation.TargetMethod, obj, out)
 		}
 	}
 }
 
 // scanFields associates annotations with struct fields or interface methods.
-func (s *scanner) scanFields(pkg *packages.Package, fields *ast.FieldList, target annotation.Target, out *Package) {
+// owner is the enclosing type, recorded as the declaration's receiver.
+func (s *scanner) scanFields(pkg *packages.Package, fields *ast.FieldList, target annotation.Target, owner *types.TypeName, out *Package) {
 	if fields == nil {
 		return
 	}
@@ -120,6 +124,7 @@ func (s *scanner) scanFields(pkg *packages.Package, fields *ast.FieldList, targe
 				decl.Field, _ = pkg.TypesInfo.Defs[name].(*types.Var)
 			case annotation.TargetMethod:
 				decl.Func, _ = pkg.TypesInfo.Defs[name].(*types.Func)
+				decl.Recv = owner
 			}
 			out.Declarations = append(out.Declarations, decl)
 		}
