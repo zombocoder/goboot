@@ -44,6 +44,7 @@ module (`github.com/zombocoder/goboot/plugins/<name>`).
 | --------- | ------------------------------------------------ | --------------------------------------------------- |
 | `oracle`  | `github.com/zombocoder/goboot/plugins/oracle`    | `DialectProvider` — Oracle SQL dialect (`:1`, `:2` …) |
 | `openapi` | `github.com/zombocoder/goboot/plugins/openapi`   | `Generator` — emits an OpenAPI 3 spec from the routes |
+| `lint`    | `github.com/zombocoder/goboot/plugins/lint`      | `Analyzer` — REST convention warnings (LINT001–003)   |
 
 Community plugins can live in any module; tag your repo with the `goboot-plugin`
 GitHub topic so others can find it.

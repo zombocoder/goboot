@@ -147,7 +147,7 @@ Errors are source-positioned with stable codes: `GOBANN*` (annotation), `GOBDI*`
 
 ## Extending with plugins
 
-Plugins are compile-time (no dynamic loading). Implement `plugin.Plugin` plus any of `AnnotationProvider` (register annotations), `Analyzer` (diagnostics), `Generator` (files), `DialectProvider` (a DB driver's placeholder style). See `plugin/exampleplugin` (all four capabilities, in-module), `plugins/oracle` (a `DialectProvider` module), and `plugins/openapi` (a `Generator` module emitting an OpenAPI 3 spec from the routes). Host them by listing the module in `goboot.yaml` (`goboot generate` self-bootstraps a plugin-aware CLI), or by building a small `main` calling `cli.Main(pluginA.New(), ...)`. Full guide: `PLUGINS.md`.
+Plugins are compile-time (no dynamic loading). Implement `plugin.Plugin` plus any of `AnnotationProvider` (register annotations), `Analyzer` (diagnostics), `Generator` (files), `DialectProvider` (a DB driver's placeholder style). Standalone-module examples, one per capability: `plugins/oracle` (`DialectProvider` — Oracle dialect), `plugins/openapi` (`Generator` — OpenAPI 3 spec), `plugins/lint` (`Analyzer` — REST convention warnings); `plugin/exampleplugin` exercises all four in-module. Note the `Analyzer`/`Generator` hooks receive `model.Application` (structured routes/components), not raw plugin annotations. Host them by listing the module in `goboot.yaml` (`goboot generate` self-bootstraps a plugin-aware CLI), or by building a small `main` calling `cli.Main(pluginA.New(), ...)`. Full guide: `PLUGINS.md`.
 
 ## When editing this framework's own source
 
