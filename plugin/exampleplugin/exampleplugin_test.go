@@ -72,6 +72,11 @@ func TestPluginAnalyzerAndGenerator(t *testing.T) {
 	if !strings.Contains(content, ":Svc") {
 		t.Errorf("manifest missing the Svc component:\n%s", content)
 	}
+	// The generator drives output from its own @Exposed annotation via the
+	// model's surfaced declarations (§46.5).
+	if !strings.Contains(content, "exposed:\n- Svc.Do") {
+		t.Errorf("manifest should list the @Exposed method Svc.Do:\n%s", content)
+	}
 }
 
 // TestPluginDialectDrivesSQLCompilation proves a plugin-provided dialect (a

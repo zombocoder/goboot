@@ -21,6 +21,23 @@ type Application struct {
 	// Routes is the flattened list of every route across all controllers,
 	// sorted by (pattern, method) for deterministic registration.
 	Routes []*Route
+	// Declarations are every scanned declaration that carries at least one
+	// annotation, with those annotations, in deterministic order. Plugins use
+	// this to drive generation and analysis from their own annotations (§46.5);
+	// the core pipeline ignores it.
+	Declarations []AnnotatedDecl
+}
+
+// DeclarationsWith returns the annotated declarations carrying the named
+// annotation, preserving Declarations' deterministic order.
+func (a *Application) DeclarationsWith(name string) []AnnotatedDecl {
+	var out []AnnotatedDecl
+	for _, d := range a.Declarations {
+		if d.Has(name) {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // SortComponents orders components by their stable ID so that any downstream

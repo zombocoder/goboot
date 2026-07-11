@@ -96,6 +96,7 @@ func AnalyzeWith(scan *ScanResult, opts Options) *AnalysisResult {
 	a.discoverLifecycle(scan, app)
 	a.discoverScheduled(scan, app)
 	a.discoverRepositories(scan, app)
+	collectDeclarations(scan, app)
 
 	g := graph.Build(app.Components)
 	if _, cyc := g.ConstructionOrder(); cyc != nil {

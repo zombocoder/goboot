@@ -88,6 +88,12 @@ Capability interfaces (implement any subset — see `plugin/plugin.go`):
 - `AnnotationProvider` — register annotation schemas the compiler recognizes.
 - `Analyzer` — contribute extra diagnostics over the analyzed model.
 - `Generator` — emit additional files alongside the wiring.
+
+Analyzers and Generators receive `*model.Application`, which surfaces
+`app.Declarations` — every annotated declaration with its raw annotations,
+including the plugin's own. Filter with `app.DeclarationsWith("MyAnnotation")` to
+drive analysis or generation from an annotation you registered via
+`AnnotationProvider`.
 - `DialectProvider` — register SQL dialects / database drivers.
 
 Contract rules (§46.4): return diagnostics rather than panic, and produce

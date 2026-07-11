@@ -60,6 +60,20 @@ func (*Plugin) Generate(app *model.Application) ([]plugin.File, error) {
 	for _, id := range ids {
 		b.WriteString(id + "\n")
 	}
+
+	// Drive output from the plugin's OWN annotation: list every method the app
+	// marked @Exposed. This is the deeper plugin API (§46.5) — the model surfaces
+	// the plugin's annotations so its Generator can act on them.
+	exposed := make([]string, 0)
+	for _, d := range app.DeclarationsWith("Exposed") {
+		exposed = append(exposed, d.Receiver+"."+d.Name)
+	}
+	sort.Strings(exposed)
+	b.WriteString("exposed:\n")
+	for _, e := range exposed {
+		b.WriteString("- " + e + "\n")
+	}
+
 	return []plugin.File{{
 		Name:    "zz_goboot_manifest.txt",
 		Content: []byte(b.String()),

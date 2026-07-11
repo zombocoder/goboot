@@ -44,7 +44,10 @@ type AnnotationProvider interface {
 }
 
 // Analyzer inspects the assembled application model and returns diagnostics
-// (§46.1). Analyzers run after core analysis and must not mutate the model.
+// (§46.1). Analyzers run after core analysis and must not mutate the model. The
+// model exposes app.Declarations (every annotated declaration with its raw
+// annotations, including the plugin's own — see app.DeclarationsWith), so an
+// analyzer can enforce rules over its own annotations (§46.5).
 type Analyzer interface {
 	Plugin
 	Analyze(app *model.Application) []*annotation.Diagnostic
@@ -52,7 +55,8 @@ type Analyzer interface {
 
 // Generator emits additional source files for the application (§46.1), for
 // example an OpenAPI description or a metadata manifest. Output must be
-// deterministic (§46.4).
+// deterministic (§46.4). A Generator may drive its output from the plugin's own
+// annotations via app.Declarations / app.DeclarationsWith (§46.5).
 type Generator interface {
 	Plugin
 	Generate(app *model.Application) ([]File, error)
