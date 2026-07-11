@@ -3,7 +3,7 @@ package service
 import "github.com/zombocoder/goboot/compiler/testdata/diapp/domain"
 
 // UserService implements domain.UserUseCase and depends on a repository and an
-// ID generator bean.
+// ID generator nut.
 //
 // @Service(name="userService")
 type UserService struct {

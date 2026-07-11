@@ -85,9 +85,9 @@ func (a *analysis) discover(decl *Declaration, app *model.Application) {
 	if decl.Has("Application") {
 		a.handleAppRoot(decl, app)
 	}
-	// A bean provider is a function or method annotated @Bean.
-	if decl.Has("Bean") && (decl.Target == annotation.TargetFunction || decl.Target == annotation.TargetMethod) {
-		a.discoverBean(decl, app)
+	// A nut provider is a function or method annotated @Nut.
+	if decl.Has("Nut") && (decl.Target == annotation.TargetFunction || decl.Target == annotation.TargetMethod) {
+		a.discoverNut(decl, app)
 		return
 	}
 	// A generated repository is an annotated interface whose implementation is
@@ -188,8 +188,8 @@ func (a *analysis) discoverComponent(decl *Declaration, app *model.Application) 
 	app.Components = append(app.Components, comp)
 }
 
-// discoverBean builds a component from an @Bean provider function.
-func (a *analysis) discoverBean(decl *Declaration, app *model.Application) {
+// discoverNut builds a component from an @Nut provider function.
+func (a *analysis) discoverNut(decl *Declaration, app *model.Application) {
 	if decl.Func == nil {
 		return
 	}
@@ -198,18 +198,18 @@ func (a *analysis) discoverBean(decl *Declaration, app *model.Application) {
 	if ctor == nil {
 		return
 	}
-	beanName, _ := stringArg(decl, "Bean", "name")
-	name := beanName
+	nutName, _ := stringArg(decl, "Nut", "name")
+	name := nutName
 	if name == "" {
 		name = decl.Func.Name()
 	}
 	app.Components = append(app.Components, &model.Component{
-		ID:           model.NewBeanID(decl.PkgPath, decl.Func.Name(), beanName),
+		ID:           model.NewNutID(decl.PkgPath, decl.Func.Name(), nutName),
 		Name:         name,
 		PackagePath:  decl.PkgPath,
 		ProvidedType: ctor.ReturnType,
 		Named:        namedOf(ctor.ReturnType),
-		Kind:         model.ComponentBean,
+		Kind:         model.ComponentNut,
 		Scope:        model.ScopeSingleton,
 		Primary:      decl.Has("Primary"),
 		Constructor:  ctor,

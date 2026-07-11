@@ -13,10 +13,10 @@ func NewProto() (*Proto, error) { return &Proto{}, nil }
 // @Component
 type Clock struct{}
 
-// Thing is provided by a bean returning (T, error).
+// Thing is provided by a nut returning (T, error).
 type Thing struct{}
 
-// ProvideThing is a bean with a (T, error) signature.
+// ProvideThing is a nut with a (T, error) signature.
 //
-// @Bean
+// @Nut
 func ProvideThing() (*Thing, error) { return &Thing{}, nil }

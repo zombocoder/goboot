@@ -20,7 +20,7 @@ type UserRepository interface {
 	FindByID(id string) (*User, error)
 }
 
-// IDGenerator produces identifiers and is provided by a bean.
+// IDGenerator produces identifiers and is provided by a nut.
 type IDGenerator interface {
 	NewID() string
 }

@@ -141,7 +141,7 @@ func coreDefinitions() []*Definition {
 				"generate": arg(ArgBoolean),
 			}},
 		{Name: "Configuration", Targets: []Target{TargetStruct, TargetType}},
-		{Name: "Bean", Targets: []Target{TargetFunction, TargetMethod},
+		{Name: "Nut", Targets: []Target{TargetFunction, TargetMethod},
 			Arguments: map[string]ArgumentDefinition{"name": arg(ArgString)}},
 		{Name: "Primary", Targets: []Target{TargetStruct, TargetType, TargetFunction, TargetMethod}},
 		{Name: "Named", Targets: []Target{TargetStruct, TargetType, TargetFunction, TargetMethod},

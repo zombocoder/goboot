@@ -31,11 +31,11 @@ func TestConstructorVariants(t *testing.T) {
 	}
 
 	thing := componentByName(res.App, "ProvideThing")
-	if thing == nil || thing.Kind != model.ComponentBean {
-		t.Errorf("ProvideThing should be a bean component: %+v", thing)
+	if thing == nil || thing.Kind != model.ComponentNut {
+		t.Errorf("ProvideThing should be a nut component: %+v", thing)
 	}
 	if !thing.Constructor.ReturnsError {
-		t.Errorf("ProvideThing bean should report ReturnsError")
+		t.Errorf("ProvideThing nut should report ReturnsError")
 	}
 }
 

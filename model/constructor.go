@@ -6,16 +6,16 @@ import (
 )
 
 // Constructor describes how a component is built (§13). It covers both the
-// NewXxx naming convention and @Bean provider functions, which share the same
+// NewXxx naming convention and @Nut provider functions, which share the same
 // signature rules (§16).
 type Constructor struct {
 	// PackagePath is the import path of the package declaring the function.
 	PackagePath string
 	// PackageName is the declaring package's name, used by the generator for
 	// import aliasing (the function's package may differ from the provided
-	// type's package, as with a bean returning another package's interface).
+	// type's package, as with a nut returning another package's interface).
 	PackageName string
-	// FuncName is the constructor or bean function name, e.g. NewUserService or
+	// FuncName is the constructor or nut function name, e.g. NewUserService or
 	// ProvideDatabase.
 	FuncName string
 	// Params are the constructor's parameters, each an injection dependency, in
@@ -26,9 +26,9 @@ type Constructor struct {
 	// ReturnsError reports whether the constructor's final return is an error
 	// (§13.3), which the generated wiring must check.
 	ReturnsError bool
-	// IsBean reports whether the constructor is an @Bean provider rather than a
+	// IsNut reports whether the constructor is an @Nut provider rather than a
 	// NewXxx constructor.
-	IsBean bool
+	IsNut bool
 	// Constructorless reports that the component has no constructor function and
 	// is built with a zero-value composite literal (§13.5). When true, FuncName
 	// is empty and Params is nil.

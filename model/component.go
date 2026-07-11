@@ -48,8 +48,8 @@ const (
 	ComponentController
 	// ComponentConfiguration is a @Configuration.
 	ComponentConfiguration
-	// ComponentBean is produced by an @Bean provider function.
-	ComponentBean
+	// ComponentNut is produced by an @Nut provider function.
+	ComponentNut
 	// ComponentAdvice is a @ControllerAdvice.
 	ComponentAdvice
 	// ComponentConfigProperties is an @ConfigurationProperties struct loaded
@@ -72,8 +72,8 @@ func (k ComponentKind) String() string {
 		return "controller"
 	case ComponentConfiguration:
 		return "configuration"
-	case ComponentBean:
-		return "bean"
+	case ComponentNut:
+		return "nut"
 	case ComponentAdvice:
 		return "advice"
 	case ComponentConfigProperties:
@@ -100,16 +100,16 @@ type LifecycleMethod struct {
 type Component struct {
 	// ID uniquely and stably identifies the component (§12.3).
 	ID ComponentID
-	// Name is the component's declared name (its type or bean function name),
+	// Name is the component's declared name (its type or nut function name),
 	// or an explicit name from the annotation.
 	Name string
 	// PackagePath is the import path of the package declaring the component.
 	PackagePath string
 	// ProvidedType is the type made available for injection: the constructor's
-	// first return type (e.g. *UserService, or an interface for a bean).
+	// first return type (e.g. *UserService, or an interface for a nut).
 	ProvidedType types.Type
 	// Named is the underlying named type when ProvidedType resolves to one,
-	// used for interface-satisfaction checks. May be nil (e.g. bean returning
+	// used for interface-satisfaction checks. May be nil (e.g. nut returning
 	// an unnamed type).
 	Named *types.Named
 	// Kind is the declaring annotation's category.

@@ -578,7 +578,7 @@ For example:
 @Service            → struct
 @RestController     → struct
 @GetMapping         → method
-@Bean               → function or method
+@Nut               → function or method
 @Configuration      → struct
 @Transactional      → method or type
 ```
@@ -626,7 +626,7 @@ The schema must be used for:
 @Service
 @Repository
 @Configuration
-@Bean
+@Nut
 @Primary
 @Qualifier
 @Named
@@ -676,13 +676,13 @@ The schema must be used for:
 
 ```text
 @Configuration
-@Bean
+@Nut
 @ConfigurationProperties
 @Value
 @Profile
 @ConditionalOnProperty
-@ConditionalOnBean
-@ConditionalOnMissingBean
+@ConditionalOnNut
+@ConditionalOnMissingNut
 ```
 
 ## 10.6 Lifecycle annotations
@@ -766,7 +766,7 @@ const (
 	ComponentRepository
 	ComponentController
 	ComponentConfiguration
-	ComponentBean
+	ComponentNut
 	ComponentAdvice
 )
 ```
@@ -807,7 +807,7 @@ Example:
 github.com/acme/users/internal/service:UserService
 ```
 
-For named beans:
+For named nuts:
 
 ```text
 github.com/acme/users/internal/config:ProvideDatabase#primaryDatabase
@@ -994,7 +994,7 @@ the dependency is ambiguous unless:
 Because parameter comments are difficult to associate reliably and elegantly, MVP should support qualifiers through provider functions.
 
 ```go
-// @Bean(name="userRepository")
+// @Nut(name="userRepository")
 func ProvideUserRepository(
 	postgres *PostgresUserRepository,
 	cache Cache,
@@ -1070,9 +1070,9 @@ Lifecycle shutdown hooks must execute in reverse construction order.
 
 ---
 
-# 16. Bean provider functions
+# 16. Nut provider functions
 
-Configuration modules may declare beans.
+Configuration modules may declare nuts.
 
 ```go
 // @Configuration
@@ -1080,7 +1080,7 @@ type DatabaseConfiguration struct{}
 ```
 
 ```go
-// @Bean(name="primaryDatabase")
+// @Nut(name="primaryDatabase")
 func ProvideDatabase(
 	config DatabaseProperties,
 ) (*pgxpool.Pool, error) {
@@ -1088,20 +1088,20 @@ func ProvideDatabase(
 }
 ```
 
-Bean functions are treated as constructors.
+Nut functions are treated as constructors.
 
 Supported signatures follow the same constructor rules.
 
-A bean may return an interface.
+A nut may return an interface.
 
 ```go
-// @Bean
+// @Nut
 func ProvideClock() Clock {
 	return systemClock{}
 }
 ```
 
-Bean methods with configuration receivers may be considered in a later version.
+Nut methods with configuration receivers may be considered in a later version.
 
 For MVP, package-level provider functions are preferred.
 
@@ -2130,14 +2130,14 @@ Secret adapters may integrate with:
 // )
 ```
 
-## 29.2 Bean conditions
+## 29.2 Nut conditions
 
 ```go
-// @ConditionalOnBean(type="Cache")
+// @ConditionalOnNut(type="Cache")
 ```
 
 ```go
-// @ConditionalOnMissingBean(type="Clock")
+// @ConditionalOnMissingNut(type="Clock")
 ```
 
 ## 29.3 Profiles
@@ -3530,7 +3530,7 @@ Version 0.1 must implement:
 @Service
 @Repository
 @Configuration
-@Bean
+@Nut
 @RestController
 @RequestMapping
 @GetMapping
@@ -3548,7 +3548,7 @@ Version 0.1 must implement:
 * constructor injection;
 * interface resolution;
 * primary components;
-* bean functions;
+* nut functions;
 * generated application wiring.
 
 ### HTTP
@@ -3611,7 +3611,7 @@ Not included:
 * OpenAPI generation;
 * multiple HTTP adapters;
 * dynamic profiles;
-* conditional beans;
+* conditional nuts;
 * incremental generation.
 
 The version 0.1 architecture must remain compatible with adding them later.
@@ -3631,8 +3631,8 @@ Version 0.2 should add:
 @PermitAll
 @Profile
 @ConditionalOnProperty
-@ConditionalOnBean
-@ConditionalOnMissingBean
+@ConditionalOnNut
+@ConditionalOnMissingNut
 ```
 
 Additional capabilities:
