@@ -22,6 +22,35 @@ func TestCompileQuestion(t *testing.T) {
 	}
 }
 
+func TestCompileSQLServer(t *testing.T) {
+	c := Compile("SELECT id FROM users WHERE id = :id AND org = :orgID", SQLServer)
+	if c.SQL != "SELECT id FROM users WHERE id = @p1 AND org = @p2" {
+		t.Errorf("SQL = %q", c.SQL)
+	}
+	if len(c.Params) != 2 || c.Params[0] != "id" || c.Params[1] != "orgID" {
+		t.Errorf("params = %v", c.Params)
+	}
+}
+
+func TestDialectByNameSQLServer(t *testing.T) {
+	for _, name := range []string{"sqlserver", "mssql"} {
+		d, ok := DialectByName(name)
+		if !ok || d.Name() != "sqlserver" {
+			t.Errorf("DialectByName(%q) = %v, %v; want the sqlserver dialect", name, d, ok)
+		}
+	}
+}
+
+func TestCompileMySQL(t *testing.T) {
+	c := Compile("SELECT id FROM users WHERE id = :id AND org = :orgID", MySQL)
+	if c.SQL != "SELECT id FROM users WHERE id = ? AND org = ?" {
+		t.Errorf("SQL = %q", c.SQL)
+	}
+	if d, ok := DialectByName("mysql"); !ok || d.Name() != "mysql" {
+		t.Errorf("DialectByName(mysql) = %v, %v; want the mysql dialect", d, ok)
+	}
+}
+
 func TestCompileRepeatedParam(t *testing.T) {
 	// A name used twice produces two placeholders and two param entries.
 	c := Compile("WHERE a = :id OR b = :id", Postgres)

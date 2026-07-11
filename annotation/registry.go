@@ -279,6 +279,12 @@ func coreDefinitions() []*Definition {
 		{Name: "Exec", Targets: []Target{TargetMethod},
 			Positional: &ArgumentDefinition{Type: ArgString},
 			Arguments:  map[string]ArgumentDefinition{"file": arg(ArgString)}},
+		{Name: "Batch", Targets: []Target{TargetMethod},
+			Positional: &ArgumentDefinition{Type: ArgString},
+			Arguments:  map[string]ArgumentDefinition{"file": arg(ArgString)}},
+		{Name: "Call", Targets: []Target{TargetMethod},
+			Positional: &ArgumentDefinition{Type: ArgString},
+			Arguments:  map[string]ArgumentDefinition{"file": arg(ArgString)}},
 	}
 }
 

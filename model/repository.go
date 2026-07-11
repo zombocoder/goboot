@@ -10,6 +10,9 @@ const (
 	QueryRead QueryKind = iota
 	// QueryExec is an @Exec that modifies data.
 	QueryExec
+	// QueryBatch is an @Batch that runs its statement once per element of a
+	// slice parameter (§27.3).
+	QueryBatch
 )
 
 // ReturnShape classifies a repository method's return so the generator can emit
@@ -36,12 +39,28 @@ type RepositoryMethod struct {
 	// RawSQL is the annotation's SQL with named parameters; the generator
 	// compiles it with the configured dialect.
 	RawSQL string
-	// Kind is read (@Query) or exec (@Exec).
+	// Kind is read (@Query), exec (@Exec), or batch (@Batch). @Call resolves to
+	// read or exec based on its return shape.
 	Kind QueryKind
 	// Return classifies the method's result.
 	Return ReturnShape
+	// Batch describes the iterated slice parameter for a QueryBatch method; nil
+	// otherwise.
+	Batch *BatchInfo
 	// Signature is the method's type signature, used to render parameters.
 	Signature *types.Signature
+}
+
+// BatchInfo describes the slice parameter an @Batch method iterates, running its
+// statement once per element (§27.3).
+type BatchInfo struct {
+	// ParamIndex is the method-parameter index of the []T slice.
+	ParamIndex int
+	// ParamName is the slice parameter's declared name; SQL parameters based on
+	// it (e.g. :items.ID) bind to the current element rather than the slice.
+	ParamName string
+	// Elem is the slice element type.
+	Elem types.Type
 }
 
 // RepositoryInfo holds the generated methods of an @Repository(generate=true)

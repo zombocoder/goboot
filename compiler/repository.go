@@ -100,10 +100,10 @@ func (a *analysis) discoverRepositories(scan *ScanResult, app *model.Application
 
 // repositoryMethod builds and validates a single repository method.
 func (a *analysis) repositoryMethod(decl *Declaration) (model.RepositoryMethod, bool) {
-	sql, kind, ok := querySQL(decl)
+	sql, annName, ok := querySQL(decl)
 	if !ok {
 		a.diags = append(a.diags, diagErr(CodeMissingQuery, decl.Pos,
-			"repository method %s must have an @Query or @Exec annotation", decl.Name))
+			"repository method %s must have an @Query, @Exec, @Batch, or @Call annotation", decl.Name))
 		return model.RepositoryMethod{}, false
 	}
 	sig, ok := decl.Func.Type().(*types.Signature)
@@ -114,6 +114,19 @@ func (a *analysis) repositoryMethod(decl *Declaration) (model.RepositoryMethod, 
 		a.diags = append(a.diags, diagErr(CodeInvalidQuerySignature, decl.Pos,
 			"repository method %s must take context.Context as its first parameter", decl.Name))
 		return model.RepositoryMethod{}, false
+	}
+
+	kind := resolveQueryKind(annName, sig)
+
+	var batch *model.BatchInfo
+	if kind == model.QueryBatch {
+		b, reason := batchInfo(sig)
+		if reason != "" {
+			a.diags = append(a.diags, diagErr(CodeInvalidQuerySignature, decl.Pos,
+				"repository method %s: %s", decl.Name, reason))
+			return model.RepositoryMethod{}, false
+		}
+		batch = b
 	}
 
 	shape, reason := classifyReturn(sig, kind)
@@ -130,27 +143,62 @@ func (a *analysis) repositoryMethod(decl *Declaration) (model.RepositoryMethod, 
 		RawSQL:    sql,
 		Kind:      kind,
 		Return:    shape,
+		Batch:     batch,
 		Signature: sig,
 	}, true
 }
 
-// querySQL extracts the SQL and kind from an @Query or @Exec annotation.
-func querySQL(decl *Declaration) (string, model.QueryKind, bool) {
-	if ann, ok := decl.Find("Query"); ok {
-		if v, ok := ann.Positional(); ok {
-			if s, ok := annotation.AsString(v); ok {
-				return s, model.QueryRead, true
+// querySQL extracts the SQL and the annotation name from an @Query, @Exec,
+// @Batch, or @Call annotation.
+func querySQL(decl *Declaration) (string, string, bool) {
+	for _, name := range []string{"Query", "Exec", "Batch", "Call"} {
+		if ann, ok := decl.Find(name); ok {
+			if v, ok := ann.Positional(); ok {
+				if s, ok := annotation.AsString(v); ok {
+					return s, name, true
+				}
 			}
 		}
 	}
-	if ann, ok := decl.Find("Exec"); ok {
-		if v, ok := ann.Positional(); ok {
-			if s, ok := annotation.AsString(v); ok {
-				return s, model.QueryExec, true
+	return "", "", false
+}
+
+// resolveQueryKind maps an annotation name to a query kind. @Call resolves to a
+// read when it returns a value and to an exec when it returns only error, so a
+// procedure that yields a result set is scanned like a query.
+func resolveQueryKind(annName string, sig *types.Signature) model.QueryKind {
+	switch annName {
+	case "Exec":
+		return model.QueryExec
+	case "Batch":
+		return model.QueryBatch
+	case "Call":
+		if sig.Results().Len() >= 2 {
+			return model.QueryRead
+		}
+		return model.QueryExec
+	default: // Query
+		return model.QueryRead
+	}
+}
+
+// batchInfo finds the single slice parameter an @Batch method iterates, or a
+// reason it is invalid (§27.3).
+func batchInfo(sig *types.Signature) (*model.BatchInfo, string) {
+	var found *model.BatchInfo
+	for i := 1; i < sig.Params().Len(); i++ {
+		p := sig.Params().At(i)
+		if slice, ok := p.Type().(*types.Slice); ok {
+			if found != nil {
+				return nil, "an @Batch method must have exactly one slice parameter to iterate"
 			}
+			found = &model.BatchInfo{ParamIndex: i, ParamName: p.Name(), Elem: slice.Elem()}
 		}
 	}
-	return "", 0, false
+	if found == nil {
+		return nil, "an @Batch method must have a slice parameter to iterate"
+	}
+	return found, ""
 }
 
 // classifyReturn determines a method's return shape or a reason it is invalid
@@ -161,7 +209,11 @@ func classifyReturn(sig *types.Signature, kind model.QueryKind) (model.ReturnSha
 		return model.ReturnShape{}, "the last result must be error"
 	}
 
-	if kind == model.QueryExec {
+	if kind == model.QueryExec || kind == model.QueryBatch {
+		noun := "@Exec"
+		if kind == model.QueryBatch {
+			noun = "@Batch"
+		}
 		switch results.Len() {
 		case 1:
 			return model.ReturnShape{}, "" // error only
@@ -169,9 +221,9 @@ func classifyReturn(sig *types.Signature, kind model.QueryKind) (model.ReturnSha
 			if isInteger(results.At(0).Type()) {
 				return model.ReturnShape{RowsAffected: true}, ""
 			}
-			return model.ReturnShape{}, "an @Exec may return only error or (int64, error)"
+			return model.ReturnShape{}, "an " + noun + " may return only error or (int64, error)"
 		default:
-			return model.ReturnShape{}, "an @Exec may return only error or (int64, error)"
+			return model.ReturnShape{}, "an " + noun + " may return only error or (int64, error)"
 		}
 	}
 
