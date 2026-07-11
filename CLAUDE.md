@@ -4,21 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-**v0.1 is implemented** (milestones M1–M5 plus the CLI). `implementation-plan.md` remains the authoritative spec for architecture, scope, naming, and conventions — consult it (§ references throughout the code) before extending anything. The package layout in §8, the MVP scope in §54, and the milestones in §58 define what to build and in what order.
+**M1–M7 plus the CLI and a plugin system are implemented.** `implementation-plan.md` remains the authoritative spec for architecture, scope, naming, and conventions — consult it (§ references throughout the code) before extending anything. One intentional deviation: the spec's `@Bean` provider annotation is named **`@Nut`** in this codebase (de-Java-ified).
 
 Implemented packages:
 - `annotation/` — lexer/parser, value model, schema registry, diagnostics (M1)
-- `compiler/` — go/packages loader, comment→declaration association, component/route/lifecycle discovery, dependency resolver (M2–M5)
+- `compiler/` — go/packages loader, comment→declaration association; discovery of components, routes, lifecycle hooks, service proxies, and repositories; dependency resolver (M2–M7)
 - `model/` — the intermediate application model consumed by generators
 - `graph/` — dependency graph, topological order, cycle detection, Mermaid
-- `runtime/` — HTTP binding/validation/errors/response, lifecycle, Application; `runtime/config/` for typed config loading
-- `generator/di/` — emits the wiring: `buildComponents`, config loaders, HTTP handler proxies + `RegisterRoutes`, `buildLifecycle`, `NewApplication`
-- `cmd/goboot/` — the CLI: `generate`, `validate`, `graph`, `clean`, `doctor`, `init`, `version`
-- `internal/e2e`, `internal/cfge2e` — committed generated wiring + integration tests that drive it (kept in sync by staleness guards in `generator/di`)
+- `runtime/` — HTTP binding/validation/errors/response, lifecycle, Application, interception (TransactionManager/Tracer/MethodMetrics); `runtime/config/` typed config; `runtime/db/` driver-neutral DB abstraction
+- `sqlgen/` — named-parameter SQL compiler with a pluggable `Dialect` (the driver seam)
+- `generator/di/` — emits the wiring: `buildComponents`, config loaders, HTTP handler proxies + `RegisterRoutes`, `buildLifecycle`, `NewApplication`, **service proxies** (interception), and **repository implementations**
+- `adapters/databasesql/` — reference driver binding over stdlib `database/sql` + a `TransactionManager`
+- `plugin/` — the compile-time extension API (annotations, analyzers, generators, SQL dialects/drivers); `plugin/exampleplugin/` is a reference plugin exercising all four capabilities
+- `cmd/goboot/` — the CLI: `generate`, `validate`, `graph`, `clean`, `doctor`, `init`, `version`; hosts plugins via `builtinPlugins`
+- `internal/e2e`, `internal/cfge2e`, `internal/proxye2e`, `internal/repoe2e` — committed generated wiring + integration tests that drive it (kept in sync by staleness guards in `generator/di`)
 
-Remaining: M6 service proxies (v0.2), M7 repositories (v0.3), M8 hardening. See §55–56.
+Remaining: M8 hardening, more adapters (native pgx, OTel, Prometheus), OpenAPI, `@Profile`/conditional nuts. See §55–56.
 
 Module path: `github.com/zombocoder/goboot` (Go 1.25).
+
+## Extending via plugins
+
+External packages extend goboot at compile time through the `plugin` package (§46) — no dynamic loading. A plugin implements `plugin.Plugin` plus any of the optional capability interfaces: `AnnotationProvider` (register annotation schemas), `Analyzer` (extra diagnostics), `Generator` (emit files), `DialectProvider` (register a SQL dialect / DB driver). A host builds a `plugin.Registry` (`plugin.New(...)`) which merges plugin annotations into the annotation registry, runs analyzers/generators with panic recovery, and resolves dialects. The default CLI's plugin set is the `builtinPlugins` var in `cmd/goboot/plugins.go` (empty by default; a project builds its own `main` that injects plugins and calls `run()`). `plugin/exampleplugin` is the worked example and test subject.
 
 ## What goboot is
 

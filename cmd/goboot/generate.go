@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/zombocoder/goboot/generator/di"
-	"github.com/zombocoder/goboot/sqlgen"
 )
 
 // generatedFilePrefix marks files goboot produces (§40); clean removes files
@@ -46,7 +45,7 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 	strictMode := *strict || cfg.Generation.Strict
 	cleanFirst := *clean || cfg.Generation.Clean
 
-	res, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, stderr)
+	res, host, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, stderr)
 	if res == nil {
 		return 1
 	}
@@ -56,7 +55,7 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 	}
 
 	dialectName := firstNonEmpty(*dialect, cfg.Generation.Dialect)
-	sqlDialect, ok := sqlgen.DialectByName(dialectName)
+	sqlDialect, ok := host.Dialect(dialectName)
 	if !ok {
 		fmt.Fprintf(stderr, "goboot: unknown SQL dialect %q\n", dialectName)
 		return 2
@@ -65,6 +64,13 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 	src, err := di.Generate(res.App, res.Graph, di.Options{Package: pkgName, Dialect: sqlDialect})
 	if err != nil {
 		fmt.Fprintf(stderr, "goboot: %v\n", err)
+		return 1
+	}
+
+	// Plugin generators contribute additional artifacts.
+	pluginFiles, gdiags := host.Generate(res.App)
+	if n := printDiagnostics(stderr, gdiags, strictMode); n > 0 {
+		fmt.Fprintf(stderr, "goboot: %d plugin generation error(s); no files written\n", n)
 		return 1
 	}
 
@@ -83,6 +89,16 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 	if err := writeFileAtomic(target, []byte(src)); err != nil {
 		fmt.Fprintf(stderr, "goboot: %v\n", err)
 		return 1
+	}
+	for _, f := range pluginFiles {
+		path := filepath.Join(absOut, filepath.Base(f.Name))
+		if err := writeFileAtomic(path, f.Content); err != nil {
+			fmt.Fprintf(stderr, "goboot: %v\n", err)
+			return 1
+		}
+		if *verbose {
+			fmt.Fprintf(stdout, "goboot: wrote %s (plugin)\n", path)
+		}
 	}
 
 	if *verbose {
