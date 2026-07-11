@@ -92,6 +92,7 @@ func AnalyzeWith(scan *ScanResult, opts Options) *AnalysisResult {
 
 	a.resolve(app)
 	a.discoverRoutes(scan, app)
+	a.discoverExceptionHandlers(scan, app)
 	a.discoverLifecycle(scan, app)
 	a.discoverScheduled(scan, app)
 	a.discoverRepositories(scan, app)

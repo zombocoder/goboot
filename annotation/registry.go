@@ -176,7 +176,7 @@ func coreDefinitions() []*Definition {
 		// ---- Error handling ---------------------------------------------
 		{Name: "ControllerAdvice", Targets: []Target{TargetStruct, TargetType}},
 		{Name: "ExceptionHandler", Targets: []Target{TargetMethod},
-			Arguments: map[string]ArgumentDefinition{"type": required(ArgString)}},
+			Arguments: map[string]ArgumentDefinition{"type": arg(ArgString)}},
 
 		// ---- Configuration properties -----------------------------------
 		{Name: "ConfigurationProperties", Targets: []Target{TargetStruct, TargetType},
