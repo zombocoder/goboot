@@ -41,6 +41,9 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "goboot: %v\n", err)
 		return 1
 	}
+	if code, done := maybeBootstrap(*dir, cfg, stdout, stderr); done {
+		return code
+	}
 	patterns := resolvePatterns(fs.Args(), cfg)
 	outputDir := firstNonEmpty(*output, cfg.Generation.Output)
 	pkgName := firstNonEmpty(*pkg, cfg.Generation.Package)

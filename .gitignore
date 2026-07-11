@@ -33,3 +33,6 @@ go.work.sum
 
 # Compiled CLI binary
 /goboot
+
+# goboot plugin build cache
+.goboot/
