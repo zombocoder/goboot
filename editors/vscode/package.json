@@ -1,0 +1,47 @@
+{
+  "name": "goboot-annotations",
+  "displayName": "goboot Annotations",
+  "description": "Syntax highlighting and snippets for goboot annotations in Go doc comments (// @Service, // @GetMapping, // @Query, ...).",
+  "version": "0.1.0",
+  "publisher": "zombocoder",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "goboot",
+    "go",
+    "golang",
+    "annotations",
+    "syntax highlighting"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zombocoder/goboot",
+    "directory": "editors/vscode"
+  },
+  "galleryBanner": {
+    "color": "#00ADD8",
+    "theme": "dark"
+  },
+  "contributes": {
+    "grammars": [
+      {
+        "scopeName": "goboot.annotations.injection",
+        "path": "./syntaxes/goboot.tmLanguage.json",
+        "injectTo": [
+          "source.go"
+        ]
+      }
+    ],
+    "snippets": [
+      {
+        "language": "go",
+        "path": "./snippets/goboot.code-snippets"
+      }
+    ]
+  }
+}

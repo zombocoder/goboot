@@ -20,6 +20,7 @@ Implemented packages:
 - `cli/` — the importable CLI implementation (`cli.Main(plugins...)`, `cli.Run`): `generate`, `validate`, `graph`, `clean`, `doctor`, `init`, `plugins`, `version`; injected plugins live in the `hostPlugins` var
 - `cmd/goboot/` — the thin default binary; a thin `main` calling `cli.Main()` with no plugins
 - `internal/e2e`, `internal/cfge2e`, `internal/proxye2e`, `internal/repoe2e` — committed generated wiring + integration tests that drive it (kept in sync by staleness guards in `generator/di`)
+- `editors/vscode/` — a VS Code extension (TextMate injection grammar + snippets) that highlights `@Annotation(args)` inside Go doc comments; its grammar is tested with `vscode-textmate` (`editors/vscode/test/tokenize.js`, run in CI)
 
 Remaining: M8 hardening, more adapters (native pgx, OTel, Prometheus), OpenAPI, `@Profile`/conditional nuts. See §55–56.
 

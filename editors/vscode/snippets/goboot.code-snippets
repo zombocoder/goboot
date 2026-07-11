@@ -1,0 +1,96 @@
+{
+  "goboot Application": {
+    "prefix": "@Application",
+    "body": ["// @Application(name=\"${1:app}\")"],
+    "description": "goboot application root"
+  },
+  "goboot Service": {
+    "prefix": "@Service",
+    "body": ["// @Service(name=\"${1:name}\"${2:, implements=\"${3:Iface}\"})"],
+    "description": "goboot @Service component (implements enables an interception proxy)"
+  },
+  "goboot Component": {
+    "prefix": "@Component",
+    "body": ["// @Component(name=\"${1:name}\")"],
+    "description": "goboot generic component"
+  },
+  "goboot Configuration + Nut": {
+    "prefix": "@Configuration",
+    "body": [
+      "// @Configuration",
+      "type ${1:Config} struct{}",
+      "",
+      "// @Nut(name=\"${2:name}\")",
+      "func (${3:c} ${1:Config}) ${4:Provide}() ${5:*Thing} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "goboot @Configuration with an @Nut provider"
+  },
+  "goboot RestController": {
+    "prefix": "@RestController",
+    "body": [
+      "// @RestController",
+      "// @RequestMapping(path=\"/${1:path}\")"
+    ],
+    "description": "goboot HTTP controller with a base path"
+  },
+  "goboot GetMapping": {
+    "prefix": "@GetMapping",
+    "body": ["// @GetMapping(path=\"/${1:path}\")"],
+    "description": "goboot GET route"
+  },
+  "goboot PostMapping": {
+    "prefix": "@PostMapping",
+    "body": ["// @PostMapping(path=\"/${1:path}\")"],
+    "description": "goboot POST route"
+  },
+  "goboot Mapping (any verb)": {
+    "prefix": "@Mapping",
+    "body": ["// @${1|Get,Post,Put,Patch,Delete|}Mapping(path=\"/${2:path}\")"],
+    "description": "goboot route for any HTTP verb"
+  },
+  "goboot Repository (generated)": {
+    "prefix": "@Repository",
+    "body": ["// @Repository(generate=true, entity=\"${1:Entity}\", table=\"${2:table}\")"],
+    "description": "goboot generated repository interface"
+  },
+  "goboot Query": {
+    "prefix": "@Query",
+    "body": ["// @Query(`${1:SELECT * FROM t WHERE id = :id}`)"],
+    "description": "goboot repository read query"
+  },
+  "goboot Exec": {
+    "prefix": "@Exec",
+    "body": ["// @Exec(`${1:INSERT INTO t (...) VALUES (...)}`)"],
+    "description": "goboot repository write"
+  },
+  "goboot Transactional": {
+    "prefix": "@Transactional",
+    "body": ["// @Transactional"],
+    "description": "run an intercepted service method in a transaction"
+  },
+  "goboot Scheduled": {
+    "prefix": "@Scheduled",
+    "body": ["// @Scheduled(fixedRate=\"${1:15s}\")"],
+    "description": "goboot background scheduled task"
+  },
+  "goboot ConfigurationProperties": {
+    "prefix": "@ConfigurationProperties",
+    "body": ["// @ConfigurationProperties(prefix=\"${1:server}\")"],
+    "description": "goboot typed config binding"
+  },
+  "goboot ControllerAdvice + ExceptionHandler": {
+    "prefix": "@ControllerAdvice",
+    "body": [
+      "// @ControllerAdvice",
+      "type ${1:Advice} struct{}",
+      "",
+      "// @ExceptionHandler",
+      "func (${2:a} *${1:Advice}) ${3:Handle}(ctx context.Context, err *${4:MyError}) error {",
+      "\t$0",
+      "}"
+    ],
+    "description": "goboot controller advice with a typed exception handler"
+  }
+}

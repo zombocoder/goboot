@@ -1,0 +1,103 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "goboot.annotations.injection",
+  "injectionSelector": "L:comment.line.double-slash.go, L:comment.block.go",
+  "patterns": [
+    { "include": "#annotation-with-args" },
+    { "include": "#annotation-marker" }
+  ],
+  "repository": {
+    "annotation-with-args": {
+      "comment": "An annotation followed by an argument list, e.g. @GetMapping(path=\"/x\").",
+      "name": "meta.annotation.goboot",
+      "begin": "(?<![\\w@.])(@)([A-Z][A-Za-z0-9]*)\\s*(\\()",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.annotation.goboot" },
+        "2": { "name": "storage.type.annotation.goboot" },
+        "3": { "name": "punctuation.definition.arguments.begin.goboot" }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.arguments.end.goboot" }
+      },
+      "patterns": [
+        { "include": "#arguments" }
+      ]
+    },
+    "annotation-marker": {
+      "comment": "A bare marker annotation, e.g. @Service or @Transactional.",
+      "match": "(?<![\\w@.])(@)([A-Z][A-Za-z0-9]*)\\b",
+      "captures": {
+        "1": { "name": "punctuation.definition.annotation.goboot" },
+        "2": { "name": "storage.type.annotation.goboot" }
+      }
+    },
+    "arguments": {
+      "patterns": [
+        { "include": "#argument-key" },
+        { "include": "#raw-string" },
+        { "include": "#double-string" },
+        { "include": "#number" },
+        { "include": "#constant" },
+        { "include": "#enum-identifier" },
+        { "include": "#punctuation" }
+      ]
+    },
+    "argument-key": {
+      "comment": "A named argument key: name= .",
+      "match": "([A-Za-z_][A-Za-z0-9_]*)\\s*(=)",
+      "captures": {
+        "1": { "name": "variable.parameter.annotation.goboot" },
+        "2": { "name": "keyword.operator.assignment.goboot" }
+      }
+    },
+    "double-string": {
+      "name": "string.quoted.double.goboot",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.goboot" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.goboot" }
+      },
+      "patterns": [
+        { "name": "constant.character.escape.goboot", "match": "\\\\." }
+      ]
+    },
+    "raw-string": {
+      "name": "string.quoted.other.raw.goboot",
+      "begin": "`",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.goboot" }
+      },
+      "end": "`",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.goboot" }
+      }
+    },
+    "number": {
+      "name": "constant.numeric.goboot",
+      "match": "(?<![\\w.])-?\\d+(\\.\\d+)?\\b"
+    },
+    "constant": {
+      "comment": "Language constants: booleans and null.",
+      "name": "constant.language.goboot",
+      "match": "\\b(true|false|null)\\b"
+    },
+    "enum-identifier": {
+      "comment": "Bare identifiers and dotted enums, e.g. singleton or TimeUnit.MINUTES.",
+      "name": "constant.other.enum.goboot",
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*\\b"
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.separator.goboot", "match": "," },
+        { "name": "punctuation.definition.array.begin.goboot", "match": "\\[" },
+        { "name": "punctuation.definition.array.end.goboot", "match": "\\]" },
+        { "name": "punctuation.definition.object.begin.goboot", "match": "\\{" },
+        { "name": "punctuation.definition.object.end.goboot", "match": "\\}" }
+      ]
+    }
+  }
+}
