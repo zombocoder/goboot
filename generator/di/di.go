@@ -56,6 +56,7 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 	for _, id := range order {
 		registerImports(g.Component(id), im)
 	}
+	registerRouteImports(app, im)
 	reserved := map[string]bool{"err": true}
 	for _, alias := range im.aliases() {
 		reserved[alias] = true
@@ -69,8 +70,9 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 	}
 	structDef := renderStruct(bindings, im)
 	returnStmt := renderReturn(bindings)
+	httpPart := renderHTTP(app, byID, im)
 
-	src := assemble(opts.Package, im, structDef, body, returnStmt)
+	src := assemble(opts.Package, im, structDef, body, returnStmt, httpPart)
 	formatted, err := format.Source([]byte(src))
 	if err != nil {
 		return "", fmt.Errorf("di: formatting generated source: %w\n%s", err, src)
@@ -213,8 +215,9 @@ func renderReturn(bindings []*binding) string {
 	return b.String()
 }
 
-// assemble stitches the file together and returns unformatted source.
-func assemble(pkg string, im *imports, structDef, body, returnStmt string) string {
+// assemble stitches the file together and returns unformatted source. httpPart,
+// when non-empty, carries the generated HTTP handlers and route registration.
+func assemble(pkg string, im *imports, structDef, body, returnStmt, httpPart string) string {
 	var b strings.Builder
 	b.WriteString(GeneratedMarker + "\n\n")
 	b.WriteString("package " + pkg + "\n\n")
@@ -230,6 +233,10 @@ func assemble(pkg string, im *imports, structDef, body, returnStmt string) strin
 	}
 	b.WriteString(returnStmt)
 	b.WriteString("}\n")
+	if httpPart != "" {
+		b.WriteString("\n")
+		b.WriteString(httpPart)
+	}
 	return b.String()
 }
 

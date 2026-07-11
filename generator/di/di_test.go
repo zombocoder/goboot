@@ -75,13 +75,19 @@ func TestGenerateWiringContent(t *testing.T) {
 	if !strings.Contains(src, "package wiring") {
 		t.Errorf("missing package clause")
 	}
-	// Every component constructor should be called.
+	// Every component constructor should be called, and the HTTP handlers and
+	// route registration should be emitted.
 	for _, want := range []string{
 		"repo.NewPostgresUserRepository()",
 		"config.ProvideIDGenerator()",
 		"service.NewUserService(",
 		"controller.NewUserController(",
 		"func buildComponents() (*Components, error)",
+		"func RegisterRoutes(mux *http.ServeMux",
+		`mux.HandleFunc("GET /api/v1/users/{id}"`,
+		`mux.HandleFunc("POST /api/v1/users"`,
+		"deps.Binder.Bind(ctx, r, &request)",
+		"deps.ResponseWriter.Write(ctx, w, 200, response)",
 	} {
 		if !strings.Contains(src, want) {
 			t.Errorf("generated output missing %q", want)
@@ -141,3 +147,23 @@ func TestGenerateRejectsCycle(t *testing.T) {
 }
 
 func idx(s, sub string) int { return strings.Index(s, sub) }
+
+// TestE2EWiringUpToDate guards that the committed integration wiring in
+// internal/e2e/wiring.gen.go matches what the generator produces. If this fails,
+// regenerate it (the test message explains how) so the end-to-end tests exercise
+// current output.
+func TestE2EWiringUpToDate(t *testing.T) {
+	res := analyzeDiapp(t)
+	src, err := Generate(res.App, res.Graph, Options{Package: "e2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	path := filepath.Join("..", "..", "internal", "e2e", "wiring.gen.go")
+	committed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/e2e/wiring.gen.go is stale; regenerate it from the diapp example")
+	}
+}

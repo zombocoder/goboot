@@ -15,6 +15,12 @@ type Application struct {
 	// Components are all discovered components. Analyzers should keep this
 	// sorted by ID for deterministic output; SortComponents enforces it.
 	Components []*Component
+	// Controllers are the discovered HTTP controllers with their routes, sorted
+	// by component ID.
+	Controllers []*Controller
+	// Routes is the flattened list of every route across all controllers,
+	// sorted by (pattern, method) for deterministic registration.
+	Routes []*Route
 }
 
 // SortComponents orders components by their stable ID so that any downstream

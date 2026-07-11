@@ -63,6 +63,7 @@ func Analyze(scan *ScanResult) *AnalysisResult {
 	app.SortComponents()
 
 	a.resolve(app)
+	a.discoverRoutes(scan, app)
 
 	g := graph.Build(app.Components)
 	if _, cyc := g.ConstructionOrder(); cyc != nil {
