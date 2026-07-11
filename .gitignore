@@ -20,9 +20,8 @@ profile.cov
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-# Go workspace file
-go.work
-go.work.sum
+# Go workspace: committed on purpose — it stitches the core module and its
+# adapter/plugin submodules together for local & CI development (see go.work).
 
 # env file
 .env

@@ -15,9 +15,5 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel/metric v1.34.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 )
-
-// In-repo development resolves the core from this checkout; released consumers
-// ignore this replace and fetch the required version above.
-replace github.com/zombocoder/goboot => ../..

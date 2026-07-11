@@ -1,0 +1,15 @@
+go 1.25.0
+
+// Local/CI development stitches the core module and its submodules together, so
+// the adapters and plugins build against this checkout — no fetch, no replace
+// directives in their go.mod. Released consumers ignore this file and resolve
+// the tagged versions via `go get`.
+use (
+	.
+	./adapters/otel
+	./adapters/pgx
+	./adapters/prometheus
+	./plugins/lint
+	./plugins/openapi
+	./plugins/oracle
+)
