@@ -115,6 +115,8 @@ func (a *analysis) buildRoute(decl *Declaration, ctrl *model.Controller, mapping
 		RequestPointer: reqPtr,
 		ResponseType:   respType,
 		SuccessStatus:  successStatus(decl, mapping),
+		Consumes:       mediaTypes(decl, mapping.annotation, "consumes", "Consumes"),
+		Produces:       mediaTypes(decl, mapping.annotation, "produces", "Produces"),
 		Authorize:      authorizeRoles(decl),
 		Position:       decl.Pos,
 	}
@@ -198,6 +200,31 @@ func authorizeRoles(decl *Declaration) []string {
 		}
 	}
 	return roles
+}
+
+// mediaTypes gathers a route's media-type constraint from both the mapping
+// argument (e.g. @PostMapping(consumes=[...])) and the standalone marker
+// (@Consumes([...])), preserving order and de-duplicating.
+func mediaTypes(decl *Declaration, mappingAnn, argName, standaloneAnn string) []string {
+	var out []string
+	seen := map[string]bool{}
+	add := func(items []string) {
+		for _, s := range items {
+			if s != "" && !seen[s] {
+				seen[s] = true
+				out = append(out, s)
+			}
+		}
+	}
+	if ann, ok := decl.Find(mappingAnn); ok {
+		add(arrayArg(ann, argName))
+	}
+	if ann, ok := decl.Find(standaloneAnn); ok {
+		if v, ok := ann.Positional(); ok {
+			add(stringList(v))
+		}
+	}
+	return out
 }
 
 // finalizeControllers sorts controllers and their routes deterministically and

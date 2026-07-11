@@ -195,6 +195,15 @@ func renderHandler(route *model.Route, ctrl *binding, im *imports, rt, httpPkg f
 	b.WriteString("\t\tctx := r.Context()\n")
 	fmt.Fprintf(&b, "\t\tdefer %s(ctx, w, r, deps.ErrorHandler)\n\n", rt("Recover"))
 
+	// Content negotiation runs first so an unacceptable media type fails fast
+	// before binding (§19).
+	if len(route.Consumes) > 0 || len(route.Produces) > 0 {
+		fmt.Fprintf(&b, "\t\tif err := %s(r, %s, %s); err != nil {\n",
+			rt("NegotiateContent"), stringSliceLit(route.Consumes), stringSliceLit(route.Produces))
+		b.WriteString(handleAndReturn())
+		b.WriteString("\t\t}\n")
+	}
+
 	callArgs := []string{"ctx"}
 	if route.HasRequest() {
 		reqType := renderType(route.RequestType, im)
