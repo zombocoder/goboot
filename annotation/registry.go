@@ -160,6 +160,9 @@ func coreDefinitions() []*Definition {
 			}},
 		{Name: "GetMapping", Targets: []Target{TargetMethod}, Arguments: methodMappingArgs()},
 		{Name: "PostMapping", Targets: []Target{TargetMethod}, Arguments: methodMappingArgs()},
+		{Name: "PutMapping", Targets: []Target{TargetMethod}, Arguments: methodMappingArgs()},
+		{Name: "PatchMapping", Targets: []Target{TargetMethod}, Arguments: methodMappingArgs()},
+		{Name: "DeleteMapping", Targets: []Target{TargetMethod}, Arguments: methodMappingArgs()},
 		{Name: "Response", Targets: []Target{TargetMethod}, Repeatable: true,
 			Arguments: map[string]ArgumentDefinition{
 				"status":      arg(ArgInteger),

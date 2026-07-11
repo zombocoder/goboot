@@ -28,6 +28,9 @@ type httpMapping struct {
 var httpMappings = []httpMapping{
 	{"GetMapping", "GET", 200},
 	{"PostMapping", "POST", 201},
+	{"PutMapping", "PUT", 200},
+	{"PatchMapping", "PATCH", 200},
+	{"DeleteMapping", "DELETE", 204},
 }
 
 // discoverRoutes finds controllers and their route methods, validates handler
