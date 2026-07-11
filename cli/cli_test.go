@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"bytes"
@@ -12,13 +12,13 @@ import (
 // runCLI invokes the CLI with args and captures stdout and stderr.
 func runCLI(args ...string) (code int, stdout, stderr string) {
 	var o, e bytes.Buffer
-	code = run(args, &o, &e)
+	code = Run(args, &o, &e)
 	return code, o.String(), e.String()
 }
 
 // compilerDir is the path to the compiler package (with its testdata) from the
 // cmd/goboot test working directory.
-const compilerDir = "../../compiler"
+const compilerDir = "../compiler"
 
 func TestVersion(t *testing.T) {
 	code, out, _ := runCLI("version")
@@ -166,7 +166,7 @@ func TestClean(t *testing.T) {
 
 func TestDoctor(t *testing.T) {
 	// Run against the module root, which has a go.mod.
-	code, out, _ := runCLI("doctor", "-dir", "../..")
+	code, out, _ := runCLI("doctor", "-dir", "..")
 	if code != 0 {
 		t.Fatalf("doctor exit = %d", code)
 	}
@@ -178,7 +178,7 @@ func TestDoctor(t *testing.T) {
 // TestGenerateEndToEnd is the acceptance scenario of §59: run `goboot generate`
 // against annotated packages and confirm the generated code compiles.
 func TestGenerateEndToEnd(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", ".."))
+	root, err := filepath.Abs("..")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +217,7 @@ func TestGenerateEndToEnd(t *testing.T) {
 }
 
 func TestGenerateCleanFlag(t *testing.T) {
-	root, _ := filepath.Abs(filepath.Join("..", ".."))
+	root, _ := filepath.Abs("..")
 	tmp, err := os.MkdirTemp(root, "gencli")
 	if err != nil {
 		t.Fatal(err)

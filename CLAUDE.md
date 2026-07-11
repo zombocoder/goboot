@@ -16,7 +16,8 @@ Implemented packages:
 - `generator/di/` — emits the wiring: `buildComponents`, config loaders, HTTP handler proxies + `RegisterRoutes`, `buildLifecycle`, `NewApplication`, **service proxies** (interception), and **repository implementations**
 - `adapters/databasesql/` — reference driver binding over stdlib `database/sql` + a `TransactionManager`
 - `plugin/` — the compile-time extension API (annotations, analyzers, generators, SQL dialects/drivers); `plugin/exampleplugin/` is a reference plugin exercising all four capabilities
-- `cmd/goboot/` — the CLI: `generate`, `validate`, `graph`, `clean`, `doctor`, `init`, `version`; hosts plugins via `builtinPlugins`
+- `cli/` — the importable CLI implementation (`cli.Main(plugins...)`, `cli.Run`): `generate`, `validate`, `graph`, `clean`, `doctor`, `init`, `plugins`, `version`; injected plugins live in the `hostPlugins` var
+- `cmd/goboot/` — the thin default binary; a thin `main` calling `cli.Main()` with no plugins
 - `internal/e2e`, `internal/cfge2e`, `internal/proxye2e`, `internal/repoe2e` — committed generated wiring + integration tests that drive it (kept in sync by staleness guards in `generator/di`)
 
 Remaining: M8 hardening, more adapters (native pgx, OTel, Prometheus), OpenAPI, `@Profile`/conditional nuts. See §55–56.
@@ -25,7 +26,7 @@ Module path: `github.com/zombocoder/goboot` (Go 1.25).
 
 ## Extending via plugins
 
-External packages extend goboot at compile time through the `plugin` package (§46) — no dynamic loading. A plugin implements `plugin.Plugin` plus any of the optional capability interfaces: `AnnotationProvider` (register annotation schemas), `Analyzer` (extra diagnostics), `Generator` (emit files), `DialectProvider` (register a SQL dialect / DB driver). A host builds a `plugin.Registry` (`plugin.New(...)`) which merges plugin annotations into the annotation registry, runs analyzers/generators with panic recovery, and resolves dialects. The default CLI's plugin set is the `builtinPlugins` var in `cmd/goboot/plugins.go` (empty by default; a project builds its own `main` that injects plugins and calls `run()`). `plugin/exampleplugin` is the worked example and test subject.
+External packages extend goboot at compile time through the `plugin` package (§46) — no dynamic loading. A plugin implements `plugin.Plugin` plus any of the optional capability interfaces: `AnnotationProvider` (register annotation schemas), `Analyzer` (extra diagnostics), `Generator` (emit files), `DialectProvider` (register a SQL dialect / DB driver). A host builds a `plugin.Registry` (`plugin.New(...)`) which merges plugin annotations into the annotation registry, runs analyzers/generators with panic recovery, and resolves dialects. The CLI lives in the importable `cli` package: `cli.Main(pluginA.New(), ...)` injects plugins (stored in the `hostPlugins` var); the default `cmd/goboot` binary injects none. A project lists plugins in `goboot.yaml` (`plugins:`) and goboot builds a plugin-aware binary from that list (§46.2). `plugin/exampleplugin` is the worked example and test subject.
 
 ## What goboot is
 
