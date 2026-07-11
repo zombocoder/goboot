@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a problem with goboot
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Please provide a minimal
+        reproduction so we can help quickly.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: >
+        The annotated Go snippet, the command you ran (e.g. `goboot generate ./...`),
+        and the resulting diagnostic or generated code.
+      render: go
+    validations:
+      required: true
+  - type: input
+    id: goboot-version
+    attributes:
+      label: goboot version
+      description: Output of `goboot version` (or the commit / module version).
+    validations:
+      required: true
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      description: Output of `go version`.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Logs, environment details, or context that might help.

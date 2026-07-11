@@ -13,7 +13,7 @@ func (*MemoryStore) Get() string   { return "memory" }
 type DiskStore struct{}
 
 func NewDiskStore() *DiskStore { return &DiskStore{} }
-func (*DiskStore) Get() string  { return "disk" }
+func (*DiskStore) Get() string { return "disk" }
 
 // Consumer depends on the ambiguous Store interface.
 //
