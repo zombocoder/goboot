@@ -4,9 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-This is a **greenfield project**. Only `go.mod`, `.gitignore`, and `implementation-plan.md` (the full technical specification) exist — no Go source has been written yet. `implementation-plan.md` is the authoritative source of truth for architecture, scope, naming, and conventions; consult it before designing anything. The package layout in §8, the MVP scope in §54, and the milestones in §58 define what to build and in what order.
+**v0.1 is implemented** (milestones M1–M5 plus the CLI). `implementation-plan.md` remains the authoritative spec for architecture, scope, naming, and conventions — consult it (§ references throughout the code) before extending anything. The package layout in §8, the MVP scope in §54, and the milestones in §58 define what to build and in what order.
 
-Module path: `github.com/zombocoder/goboot` (Go 1.24.5).
+Implemented packages:
+- `annotation/` — lexer/parser, value model, schema registry, diagnostics (M1)
+- `compiler/` — go/packages loader, comment→declaration association, component/route/lifecycle discovery, dependency resolver (M2–M5)
+- `model/` — the intermediate application model consumed by generators
+- `graph/` — dependency graph, topological order, cycle detection, Mermaid
+- `runtime/` — HTTP binding/validation/errors/response, lifecycle, Application; `runtime/config/` for typed config loading
+- `generator/di/` — emits the wiring: `buildComponents`, config loaders, HTTP handler proxies + `RegisterRoutes`, `buildLifecycle`, `NewApplication`
+- `cmd/goboot/` — the CLI: `generate`, `validate`, `graph`, `clean`, `doctor`, `init`, `version`
+- `internal/e2e`, `internal/cfge2e` — committed generated wiring + integration tests that drive it (kept in sync by staleness guards in `generator/di`)
+
+Remaining: M6 service proxies (v0.2), M7 repositories (v0.3), M8 hardening. See §55–56.
+
+Module path: `github.com/zombocoder/goboot` (Go 1.25).
 
 ## What goboot is
 
@@ -43,17 +55,26 @@ Build strictly to the versioned scope. **MVP / v0.1** (§54) = annotation parser
 
 ## Commands
 
-Standard Go tooling (no code or Makefile exists yet; these are the conventions the spec mandates):
-
 ```bash
 go build ./...                 # build everything
-go test ./...                  # run all tests (unit + golden + compile)
+go test ./...                  # run all tests (unit + golden + compile + integration)
 go test -race ./...            # race detection (required in CI, §49.2)
 go test ./annotation/          # test one package
 go test ./annotation/ -run TestLexer   # run a single test by name
-go test ./... -update          # regenerate golden files (once golden tests exist, §48.2)
-go vet ./... && staticcheck ./... && golangci-lint run   # static analysis (§49.1)
-gofmt -l . && goimports -l .   # formatting check
+go test ./generator/di/ -run TestGenerateWiringGolden -update   # regenerate the golden
+go vet ./...                   # static analysis (§49.1)
+gofmt -l .                     # formatting check
+```
+
+**Golden / generated-wiring workflow.** `generator/di` has golden tests and *staleness guards* (`TestE2EWiringUpToDate`, `TestCfgE2EWiringUpToDate`) that compare the committed `internal/e2e/wiring.gen.go` and `internal/cfge2e/wiring.gen.go` against freshly generated output. If you change the generator, regenerate the golden (above) **and** the committed e2e wiring, or these tests fail. The e2e wiring is produced from the `compiler/testdata/diapp` and `compiler/testdata/cfgapp` fixtures.
+
+**Running the CLI:**
+
+```bash
+go run ./cmd/goboot version
+go run ./cmd/goboot validate -dir compiler ./testdata/diapp/...     # analyze, print diagnostics, no write
+go run ./cmd/goboot graph -dir compiler -format mermaid ./testdata/diapp/...
+go run ./cmd/goboot generate -dir <moduledir> -output internal/generated -package generated ./...
 ```
 
 The CLI, once built, is driven by `go generate`:
