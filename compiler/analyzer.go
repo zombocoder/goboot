@@ -37,6 +37,7 @@ var componentKind = []struct {
 	{"Repository", model.ComponentRepository},
 	{"RestController", model.ComponentController},
 	{"ControllerAdvice", model.ComponentAdvice},
+	{"ConfigurationProperties", model.ComponentConfigProperties},
 	{"Configuration", model.ComponentConfiguration},
 	{"Component", model.ComponentGeneric},
 }
@@ -64,6 +65,7 @@ func Analyze(scan *ScanResult) *AnalysisResult {
 
 	a.resolve(app)
 	a.discoverRoutes(scan, app)
+	a.discoverLifecycle(scan, app)
 
 	g := graph.Build(app.Components)
 	if _, cyc := g.ConstructionOrder(); cyc != nil {
@@ -118,6 +120,10 @@ func (a *analysis) checkAppRoot() {
 func (a *analysis) discoverComponent(decl *Declaration, app *model.Application) {
 	kind, ok := componentKindOf(decl)
 	if !ok || decl.TypeName == nil {
+		return
+	}
+	if kind == model.ComponentConfigProperties {
+		a.discoverConfigProperties(decl, app)
 		return
 	}
 	fset := decl.Pkg.Fset

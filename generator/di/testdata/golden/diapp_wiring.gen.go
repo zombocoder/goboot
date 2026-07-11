@@ -97,3 +97,16 @@ func RegisterRoutes(mux *http.ServeMux, components *Components, deps runtime.HTT
 	mux.HandleFunc("POST /api/v1/users", makeUserControllerCreateUserHandler(components.UserController, deps))
 	mux.HandleFunc("GET /api/v1/users/{id}", makeUserControllerGetUserHandler(components.UserController, deps))
 }
+
+// NewApplication builds the components and assembles a runnable application.
+func NewApplication(deps runtime.HTTPHandlerDependencies, addr string) (*runtime.Application, error) {
+	components, err := buildComponents()
+	if err != nil {
+		return nil, err
+	}
+	var lc *runtime.Lifecycle
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, components, deps)
+	server := &http.Server{Addr: addr, Handler: mux}
+	return &runtime.Application{Server: server, Lifecycle: lc}, nil
+}

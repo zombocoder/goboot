@@ -49,6 +49,8 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 		opts.Package = "generated"
 	}
 
+	feats := detectFeatures(app)
+
 	// Register every import up front so that local variable names can be kept
 	// clear of package aliases (a local named "config" would otherwise shadow
 	// an imported "config" package).
@@ -57,7 +59,13 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 		registerImports(g.Component(id), im)
 	}
 	registerRouteImports(app, im)
-	reserved := map[string]bool{"err": true}
+	if feats.hasConfig {
+		im.add(configPath, "config")
+	}
+	reserved := map[string]bool{"err": true, "out": true}
+	if feats.hasConfig {
+		reserved["configSource"] = true
+	}
 	for _, alias := range im.aliases() {
 		reserved[alias] = true
 	}
@@ -68,11 +76,19 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 	if err != nil {
 		return "", err
 	}
-	structDef := renderStruct(bindings, im)
-	returnStmt := renderReturn(bindings)
-	httpPart := renderHTTP(app, byID, im)
 
-	src := assemble(opts.Package, im, structDef, body, returnStmt, httpPart)
+	sec := sections{
+		pkg:           opts.Package,
+		buildParam:    buildComponentsParam(feats, im),
+		structDef:     renderStruct(bindings, im),
+		body:          body,
+		returnStmt:    renderReturn(bindings),
+		configLoaders: renderConfigLoaders(app, im),
+		httpPart:      renderHTTP(app, byID, im),
+		lifecyclePart: renderLifecycle(app, bindings, byID, im, feats),
+		appPart:       renderApplication(app, im, feats),
+	}
+	src := assemble(sec, im)
 	formatted, err := format.Source([]byte(src))
 	if err != nil {
 		return "", fmt.Errorf("di: formatting generated source: %w\n%s", err, src)
@@ -149,6 +165,15 @@ func renderConstructor(bd *binding, byID map[model.ComponentID]*binding, im *imp
 		return fmt.Sprintf("\t%s := &%s{}\n", bd.local, ref), nil
 	}
 
+	// A configuration-properties component is loaded from the config source by
+	// a generated loader that lives in this package (so it is unqualified).
+	if ctor != nil && ctor.ConfigLoader {
+		im.add("fmt", "fmt")
+		return fmt.Sprintf(
+			"\t%s, err := %s(configSource)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n",
+			bd.local, ctor.FuncName), nil
+	}
+
 	args, err := constructorArgs(c, byID)
 	if err != nil {
 		return "", err
@@ -215,27 +240,42 @@ func renderReturn(bindings []*binding) string {
 	return b.String()
 }
 
-// assemble stitches the file together and returns unformatted source. httpPart,
-// when non-empty, carries the generated HTTP handlers and route registration.
-func assemble(pkg string, im *imports, structDef, body, returnStmt, httpPart string) string {
+// sections holds the rendered pieces of the generated file. Import registration
+// happens while rendering each piece, so assemble must run after they are built.
+type sections struct {
+	pkg           string
+	buildParam    string // parameter list for buildComponents (e.g. config source)
+	structDef     string
+	body          string
+	returnStmt    string
+	configLoaders string
+	httpPart      string
+	lifecyclePart string
+	appPart       string
+}
+
+// assemble stitches the file together and returns unformatted source.
+func assemble(sec sections, im *imports) string {
 	var b strings.Builder
 	b.WriteString(GeneratedMarker + "\n\n")
-	b.WriteString("package " + pkg + "\n\n")
+	b.WriteString("package " + sec.pkg + "\n\n")
 	if block := im.block(); block != "" {
 		b.WriteString(block + "\n")
 	}
-	b.WriteString(structDef + "\n")
+	b.WriteString(sec.structDef + "\n")
 	b.WriteString("// buildComponents constructs every singleton component in dependency order.\n")
-	b.WriteString("func buildComponents() (*Components, error) {\n")
-	b.WriteString(body)
-	if body != "" {
+	fmt.Fprintf(&b, "func buildComponents(%s) (*Components, error) {\n", sec.buildParam)
+	b.WriteString(sec.body)
+	if sec.body != "" {
 		b.WriteString("\n")
 	}
-	b.WriteString(returnStmt)
+	b.WriteString(sec.returnStmt)
 	b.WriteString("}\n")
-	if httpPart != "" {
-		b.WriteString("\n")
-		b.WriteString(httpPart)
+	for _, part := range []string{sec.configLoaders, sec.httpPart, sec.lifecyclePart, sec.appPart} {
+		if part != "" {
+			b.WriteString("\n")
+			b.WriteString(part)
+		}
 	}
 	return b.String()
 }
