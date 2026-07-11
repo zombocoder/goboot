@@ -27,7 +27,7 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 		tags     = fs.String("tags", "", "comma-separated build tags")
 		strict   = fs.Bool("strict", false, "treat warnings as errors")
 		clean    = fs.Bool("clean", false, "remove existing generated files first")
-		dialect  = fs.String("dialect", "", "SQL dialect for repositories: postgres (default) or question")
+		dialect  = fs.String("dialect", "", "SQL dialect for repositories: postgres (default), question, mysql, or sqlserver")
 		profile  = fs.String("profile", "", "comma-separated active profiles (§29.3)")
 		property = fs.String("property", "", "comma-separated key=value pairs for @ConditionalOnProperty")
 		verbose  = fs.Bool("verbose", false, "print progress")

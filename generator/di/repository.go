@@ -70,19 +70,80 @@ func renderRepositoryMethod(implName string, m model.RepositoryMethod, im *impor
 
 	compiled := sqlgen.Compile(m.RawSQL, dialect)
 	sqlLit := sqlLiteral(compiled.SQL)
-	callArgs := sqlArgs(compiled.Params, sig)
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "func (r *%s) %s(%s) %s {\n", implName, m.Name, params, results)
 	dbExpr := fmt.Sprintf("r.db.DB(%s)", ctxVar)
 
-	if m.Kind == model.QueryExec {
-		b.WriteString(renderExecBody(m, dbExpr, ctxVar, sqlLit, callArgs))
-	} else {
-		b.WriteString(renderQueryBody(m, dbExpr, ctxVar, sqlLit, callArgs, im))
+	switch m.Kind {
+	case model.QueryBatch:
+		b.WriteString(renderBatchBody(m, dbExpr, ctxVar, sqlLit, compiled.Params))
+	case model.QueryExec:
+		b.WriteString(renderExecBody(m, dbExpr, ctxVar, sqlLit, sqlArgs(compiled.Params, sig)))
+	default:
+		b.WriteString(renderQueryBody(m, dbExpr, ctxVar, sqlLit, sqlArgs(compiled.Params, sig), im))
 	}
 	b.WriteString("}\n")
 	return b.String()
+}
+
+// renderBatchBody emits an @Batch method body that runs its statement once per
+// element of the iterated slice parameter (§27.3). SQL parameters based on the
+// slice bind to the current element; other parameters bind directly.
+func renderBatchBody(m model.RepositoryMethod, dbExpr, ctxVar, sqlLit string, refs []string) string {
+	const loopVar = "item"
+	slice := "a" + strconv.Itoa(m.Batch.ParamIndex)
+	exec := fmt.Sprintf("%s.ExecContext(%s, %s%s)", dbExpr, ctxVar, sqlLit,
+		commaPrefixed(batchSQLArgs(refs, m.Signature, m.Batch, loopVar)))
+
+	var b strings.Builder
+	if m.Return.RowsAffected {
+		b.WriteString("\tvar affected int64\n")
+		fmt.Fprintf(&b, "\tfor _, %s := range %s {\n", loopVar, slice)
+		fmt.Fprintf(&b, "\t\tres, err := %s\n", exec)
+		b.WriteString("\t\tif err != nil {\n\t\t\treturn affected, err\n\t\t}\n")
+		b.WriteString("\t\tn, err := res.RowsAffected()\n")
+		b.WriteString("\t\tif err != nil {\n\t\t\treturn affected, err\n\t\t}\n")
+		b.WriteString("\t\taffected += n\n")
+		b.WriteString("\t}\n")
+		b.WriteString("\treturn affected, nil\n")
+		return b.String()
+	}
+	fmt.Fprintf(&b, "\tfor _, %s := range %s {\n", loopVar, slice)
+	fmt.Fprintf(&b, "\t\tif _, err := %s; err != nil {\n\t\t\treturn err\n\t\t}\n", exec)
+	b.WriteString("\t}\n")
+	b.WriteString("\treturn nil\n")
+	return b.String()
+}
+
+// batchSQLArgs maps compiled SQL parameter references for an @Batch method:
+// references based on the iterated slice bind to the loop variable, others to
+// the method's renamed arguments.
+func batchSQLArgs(refs []string, sig *types.Signature, batch *model.BatchInfo, loopVar string) string {
+	byOrig := map[string]string{}
+	for i := 0; i < sig.Params().Len(); i++ {
+		if n := sig.Params().At(i).Name(); n != "" {
+			byOrig[n] = "a" + strconv.Itoa(i)
+		}
+	}
+	args := make([]string, len(refs))
+	for i, ref := range refs {
+		base, field := ref, ""
+		if dot := strings.IndexByte(ref, '.'); dot >= 0 {
+			base, field = ref[:dot], ref[dot:]
+		}
+		switch {
+		case base == batch.ParamName:
+			args[i] = loopVar + field
+		default:
+			renamed, ok := byOrig[base]
+			if !ok {
+				renamed = base
+			}
+			args[i] = renamed + field
+		}
+	}
+	return strings.Join(args, ", ")
 }
 
 // renderExecBody emits an @Exec method body.

@@ -192,6 +192,41 @@ func TestCfgE2EWiringUpToDate(t *testing.T) {
 	}
 }
 
+// TestBatchE2EWiringUpToDate guards the committed @Batch/@Call repository wiring
+// and asserts the batch loop and call dispatch are rendered.
+func TestBatchE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/batchapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	src, err := Generate(res.App, res.Graph, Options{Package: "batche2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		"for _, item := range a1 {",
+		"`INSERT INTO users (id, name) VALUES ($1, $2)`, item.ID, item.Name",
+		"affected += n",
+		"`UPDATE users SET org = $1 WHERE id = $2`, a1, item",                    // @Batch mixing scalar + slice
+		"r.db.DB(a0).ExecContext(a0, `CALL reindex_users()`)",                    // @Call → exec
+		"r.db.DB(a0).QueryContext(a0, `SELECT id, name FROM top_users($1)`, a1)", // @Call → query
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated batch/call wiring missing %q", want)
+		}
+	}
+	path := filepath.Join("..", "..", "internal", "batche2e", "wiring.gen.go")
+	committed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/batche2e/wiring.gen.go is stale; regenerate it from the batchapp example")
+	}
+}
+
 // TestRepoE2EWiringUpToDate guards the committed repository integration wiring
 // against the generator and asserts the repository sections are present.
 func TestRepoE2EWiringUpToDate(t *testing.T) {
@@ -237,6 +272,15 @@ func TestRepositoryDialectSwap(t *testing.T) {
 	}
 	if strings.Contains(src, "WHERE id = $1") {
 		t.Errorf("question dialect should not render $n placeholders")
+	}
+
+	// The SQL Server dialect renders @p1-style placeholders through the same seam.
+	mssql, err := Generate(res.App, res.Graph, Options{Package: "repoe2e", Dialect: sqlgen.SQLServer})
+	if err != nil {
+		t.Fatalf("generate (sqlserver): %v", err)
+	}
+	if !strings.Contains(mssql, "WHERE id = @p1`, a1)") {
+		t.Errorf("sqlserver dialect should render @pN placeholders")
 	}
 }
 

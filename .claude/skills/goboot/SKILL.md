@@ -124,9 +124,10 @@ Note: `@Authorize` also works at the **HTTP route** level today (roles are passe
 | `@Repository`      | struct or interface | `name`, `entity`, `table`, `generate`  | component-mode (struct) or generated impl (interface)               | ✅     |
 | `@Query`           | interface method    | positional SQL (`:name`, `:arg.Field`) | a query method (single/slice/scalar scan, no-rows → `db.ErrNoRows`) | ✅     |
 | `@Exec`            | interface method    | positional SQL                         | an exec method (error or `(int64, error)` rows-affected)            | ✅     |
-| `@Batch` / `@Call` | interface method    | —                                      | batch / stored-proc                                                 | 🚧     |
+| `@Batch`           | interface method    | positional SQL                         | runs the statement once per element of a slice parameter (fields bound via the slice's name, e.g. `:items.ID`); returns `error` or `(int64, error)` total rows affected | ✅ |
+| `@Call`            | interface method    | positional SQL                         | invokes a stored procedure/function; a value return (`(T, error)`/`([]T, error)`) is scanned like `@Query`, an `error`-only return runs like `@Exec` | ✅ |
 
-SQL dialect is a pluggable seam: `-dialect postgres` (`$1`, default) or `question` (`?`); plugins add more (e.g. SQL Server `@p1`).
+SQL dialect is a pluggable seam: `-dialect postgres` (`$1`, default), `question`/`sqlite` (`?`), `mysql` (`?`), or `sqlserver`/`mssql` (`@p1`); plugins add more.
 
 ### Scheduling
 
