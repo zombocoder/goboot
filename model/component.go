@@ -52,6 +52,9 @@ const (
 	ComponentBean
 	// ComponentAdvice is a @ControllerAdvice.
 	ComponentAdvice
+	// ComponentConfigProperties is an @ConfigurationProperties struct loaded
+	// from configuration rather than constructed.
+	ComponentConfigProperties
 )
 
 func (k ComponentKind) String() string {
@@ -70,9 +73,22 @@ func (k ComponentKind) String() string {
 		return "bean"
 	case ComponentAdvice:
 		return "advice"
+	case ComponentConfigProperties:
+		return "configuration-properties"
 	default:
 		return "unknown"
 	}
+}
+
+// LifecycleMethod describes an @PostConstruct or @PreDestroy method (§30). The
+// generator adapts the four supported signatures (§30.2) to a uniform hook.
+type LifecycleMethod struct {
+	// MethodName is the method to invoke on the component instance.
+	MethodName string
+	// TakesContext reports whether the method accepts a context.Context.
+	TakesContext bool
+	// ReturnsError reports whether the method returns an error.
+	ReturnsError bool
 }
 
 // Component is a single injectable unit in the application graph (§12.2).
@@ -102,8 +118,20 @@ type Component struct {
 	Constructor *Constructor
 	// Dependencies mirrors Constructor.Params after resolution, in order.
 	Dependencies []Dependency
+	// ConfigPrefix is the @ConfigurationProperties prefix for a
+	// ComponentConfigProperties component; empty otherwise.
+	ConfigPrefix string
+	// PostConstruct is the component's @PostConstruct hook, or nil.
+	PostConstruct *LifecycleMethod
+	// PreDestroy is the component's @PreDestroy hook, or nil.
+	PreDestroy *LifecycleMethod
 	// Position is the source location of the component declaration.
 	Position token.Position
+}
+
+// HasLifecycle reports whether the component declares any lifecycle hook.
+func (c *Component) HasLifecycle() bool {
+	return c.PostConstruct != nil || c.PreDestroy != nil
 }
 
 // DependsOn returns the resolved component IDs this component requires, in

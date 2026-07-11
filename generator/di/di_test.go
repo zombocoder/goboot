@@ -148,6 +148,49 @@ func TestGenerateRejectsCycle(t *testing.T) {
 
 func idx(s, sub string) int { return strings.Index(s, sub) }
 
+// TestCfgE2EWiringUpToDate guards the committed config/lifecycle integration
+// wiring against the generator, the same way TestE2EWiringUpToDate does for the
+// HTTP example.
+func TestCfgE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/cfgapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	for _, d := range res.Diagnostics {
+		if d.Severity == 2 {
+			t.Fatalf("analysis error: %s", d.Error())
+		}
+	}
+	src, err := Generate(res.App, res.Graph, Options{Package: "cfge2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	// Assert the config and lifecycle sections are present.
+	for _, want := range []string{
+		"func buildComponents(configSource config.Source)",
+		"func LoadServerProperties(source config.Source) (cfgapp.ServerProperties, error)",
+		`config.Bind("server", source, &out)`,
+		"func buildLifecycle(components *Components) *runtime.Lifecycle",
+		"components.Engine.Start(ctx)",
+		"components.Engine.Stop()",
+		"func NewApplication(configSource config.Source)",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated config/lifecycle wiring missing %q", want)
+		}
+	}
+	path := filepath.Join("..", "..", "internal", "cfge2e", "wiring.gen.go")
+	committed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/cfge2e/wiring.gen.go is stale; regenerate it from the cfgapp example")
+	}
+}
+
 // TestE2EWiringUpToDate guards that the committed integration wiring in
 // internal/e2e/wiring.gen.go matches what the generator produces. If this fails,
 // regenerate it (the test message explains how) so the end-to-end tests exercise

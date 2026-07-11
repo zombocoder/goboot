@@ -33,6 +33,11 @@ type Constructor struct {
 	// is built with a zero-value composite literal (§13.5). When true, FuncName
 	// is empty and Params is nil.
 	Constructorless bool
+	// ConfigLoader reports that the component is loaded from configuration by a
+	// generated loader rather than constructed (§28). When true, the generator
+	// emits a Load<Type> function and constructs the component from the
+	// application's config.Source.
+	ConfigLoader bool
 	// Position is the source location of the function declaration.
 	Position token.Position
 }
