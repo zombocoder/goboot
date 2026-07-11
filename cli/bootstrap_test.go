@@ -43,7 +43,7 @@ func TestBootstrapKeyStableAndSensitive(t *testing.T) {
 	a := []pluginRef{{Module: "m", Version: "v1", Import: "m", New: "New"}}
 	b := []pluginRef{{Module: "m", Version: "v2", Import: "m", New: "New"}}
 
-	if bootstrapKey(a) != bootstrapKey(a) {
+	if k := bootstrapKey(a); k != bootstrapKey(a) {
 		t.Error("bootstrap key should be stable for the same plugin set")
 	}
 	if bootstrapKey(a) == bootstrapKey(b) {

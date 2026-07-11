@@ -162,9 +162,7 @@ func printDiagnostics(w io.Writer, diags []*annotation.Diagnostic, strict bool) 
 // and -property flag values. -property items are key=value pairs.
 func conditionOptions(profile, property string) compiler.Options {
 	var opts compiler.Options
-	for _, p := range splitCSV(profile) {
-		opts.Profiles = append(opts.Profiles, p)
-	}
+	opts.Profiles = append(opts.Profiles, splitCSV(profile)...)
 	for _, kv := range splitCSV(property) {
 		if eq := indexByte(kv, '='); eq >= 0 {
 			if opts.Properties == nil {

@@ -264,12 +264,10 @@ func basicSchema(b *types.Basic) map[string]any {
 	case info&types.IsBoolean != 0:
 		return map[string]any{"type": "boolean"}
 	case info&types.IsInteger != 0:
-		format := "int64"
+		format := "int32"
 		switch b.Kind() {
 		case types.Int, types.Int64, types.Uint, types.Uint64, types.Uintptr:
 			format = "int64"
-		default:
-			format = "int32"
 		}
 		return map[string]any{"type": "integer", "format": format}
 	case info&types.IsFloat != 0:

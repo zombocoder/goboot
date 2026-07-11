@@ -1,0 +1,30 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  settings:
+    errcheck:
+      # Fire-and-forget writes and cleanup Close/Remove are idiomatically ignored.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Closer).Close
+        - (*os.File).Close
+        - os.Remove
+        - os.RemoveAll
+    staticcheck:
+      # Keep bug (SA), simplification (S), and style (ST) checks; drop the
+      # optional "quickfix" refactor suggestions (QF).
+      checks:
+        - all
+        - -QF1002
+        - -QF1012
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
