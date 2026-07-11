@@ -443,6 +443,40 @@ func TestGateE2EWiringUpToDate(t *testing.T) {
 	}
 }
 
+// TestVerbE2EWiringUpToDate guards the committed HTTP-verb wiring and asserts
+// each verb registers with its method prefix and default status.
+func TestVerbE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/verbapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	src, err := Generate(res.App, res.Graph, Options{Package: "verbe2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		`mux.HandleFunc("PUT /widgets/{id}",`,
+		`mux.HandleFunc("PATCH /widgets/{id}",`,
+		`mux.HandleFunc("DELETE /widgets/{id}",`,
+		"deps.ResponseWriter.Write(ctx, w, 200, response)", // PUT/PATCH default
+		"deps.ResponseWriter.Write(ctx, w, 204, nil)",      // DELETE default, no body
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated verb wiring missing %q", want)
+		}
+	}
+	path := filepath.Join("..", "..", "internal", "verbe2e", "wiring.gen.go")
+	committed, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/verbe2e/wiring.gen.go is stale; regenerate it from the verbapp example")
+	}
+}
+
 // TestProxyE2EWiringUpToDate guards the committed service-proxy integration
 // wiring against the generator and asserts the proxy sections are present.
 func TestProxyE2EWiringUpToDate(t *testing.T) {
