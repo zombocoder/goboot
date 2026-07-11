@@ -141,6 +141,15 @@ SQL dialect is a pluggable seam: `-dialect postgres` (`$1`, default), `question`
 
 Runtime interfaces backing the interceptors live in `runtime/`: `TransactionManager`, `Tracer`/`Span`, `MethodMetrics`, `MethodLogger`, `AuditSink`/`AuditEvent`, `Authorizer`/`AuthorizationRequest`, `RetryPolicy`, `CircuitBreakerProvider`, `RateLimiterProvider`, `BulkheadProvider`. Defaults are no-op/permit-all/direct so generated code runs before adapters are configured. Provide real implementations via `runtime.ProxyDependencies` (proxies), `runtime.HTTPHandlerDependencies` (HTTP), and a `db.DBProvider` (repositories).
 
+**Database adapters.** Generated repositories depend only on `runtime/db` interfaces; a driver adapter supplies the `db.DBProvider` and a `TransactionManager`. Built-in: `adapters/databasesql` (any stdlib `database/sql` driver; main module) and `adapters/pgx` (native `jackc/pgx/v5` over `pgxpool`; separate module — `go get github.com/zombocoder/goboot/adapters/pgx`). Wire pgx with the default `postgres` dialect:
+
+```go
+pool, _ := pgxpool.New(ctx, dsn)
+dbProvider := pgxadapter.NewProvider(pool)                 // → generated buildComponents(dbProvider)
+proxyDeps := runtime.DefaultProxyDependencies()
+proxyDeps.Transactions = pgxadapter.NewTransactionManager(pool)  // enables @Transactional
+```
+
 ## Diagnostics
 
 Errors are source-positioned with stable codes: `GOBANN*` (annotation), `GOBDI*` (DI), `GOBHTTP*` (HTTP), `GOBCFG*`/`GOBLIF*` (config/lifecycle), `GOBPRX*` (proxies), `GOBREP*` (repositories), `GOBSCH*` (scheduling), `GOBPLG*` (plugins). Common ones: missing/ambiguous dependency, dependency cycle, duplicate route, invalid handler signature, concrete injection of a proxied service (inject the interface instead).

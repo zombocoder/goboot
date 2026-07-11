@@ -14,7 +14,8 @@ Implemented packages:
 - `runtime/` — HTTP binding/validation/errors/response, lifecycle, Application, interception (TransactionManager/Tracer/MethodMetrics); `runtime/config/` typed config; `runtime/db/` driver-neutral DB abstraction
 - `sqlgen/` — named-parameter SQL compiler with a pluggable `Dialect` (the driver seam)
 - `generator/di/` — emits the wiring: `buildComponents`, config loaders, HTTP handler proxies + `RegisterRoutes`, `buildLifecycle`, `NewApplication`, **service proxies** (interception), and **repository implementations**
-- `adapters/databasesql/` — reference driver binding over stdlib `database/sql` + a `TransactionManager`
+- `adapters/databasesql/` — reference driver binding over stdlib `database/sql` + a `TransactionManager` (part of the main module)
+- `adapters/pgx/` — native PostgreSQL binding over `jackc/pgx/v5` (`pgxpool`): `db.DBProvider` + `TransactionManager`. A **separate module** (isolates the pgx dependency); pair with the default `postgres` dialect
 - `plugin/` — the compile-time extension API (annotations, analyzers, generators, SQL dialects/drivers); `plugin/exampleplugin/` is a reference plugin exercising all four capabilities
 - `cli/` — the importable CLI implementation (`cli.Main(plugins...)`, `cli.Run`): `generate`, `validate`, `graph`, `clean`, `doctor`, `init`, `plugins`, `version`; injected plugins live in the `hostPlugins` var
 - `cmd/goboot/` — the thin default binary; a thin `main` calling `cli.Main()` with no plugins
