@@ -47,6 +47,7 @@ type ProxyDependencies struct {
 	Transactions TransactionManager
 	Tracer       Tracer
 	Metrics      MethodMetrics
+	Authorizer   Authorizer
 }
 
 // DefaultProxyDependencies returns proxy dependencies wired with the built-in
@@ -56,5 +57,6 @@ func DefaultProxyDependencies() ProxyDependencies {
 		Transactions: DirectTransactionManager{},
 		Tracer:       NoopTracer{},
 		Metrics:      NoopMetrics{},
+		Authorizer:   PermitAllAuthorizer{},
 	}
 }

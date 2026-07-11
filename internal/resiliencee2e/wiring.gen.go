@@ -31,11 +31,12 @@ type FlakyServiceProxy struct {
 	transaction runtime.TransactionManager
 	tracer      runtime.Tracer
 	metrics     runtime.MethodMetrics
+	authorizer  runtime.Authorizer
 }
 
 // NewFlakyServiceProxy builds the FlakyServiceProxy.
 func NewFlakyServiceProxy(target *resilienceapp.FlakyService, deps runtime.ProxyDependencies) *FlakyServiceProxy {
-	return &FlakyServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics}
+	return &FlakyServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer}
 }
 
 func (p *FlakyServiceProxy) Attempt(a0 context.Context) (r0 int, err error) {
