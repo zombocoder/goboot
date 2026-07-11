@@ -172,6 +172,10 @@ func coreDefinitions() []*Definition {
 			}},
 		{Name: "ResponseStatus", Targets: []Target{TargetMethod},
 			Positional: &ArgumentDefinition{Type: ArgInteger, Required: true}},
+		{Name: "Consumes", Targets: []Target{TargetMethod},
+			Positional: &ArgumentDefinition{Type: ArgStringArray, Required: true}},
+		{Name: "Produces", Targets: []Target{TargetMethod},
+			Positional: &ArgumentDefinition{Type: ArgStringArray, Required: true}},
 
 		// ---- Error handling ---------------------------------------------
 		{Name: "ControllerAdvice", Targets: []Target{TargetStruct, TargetType}},

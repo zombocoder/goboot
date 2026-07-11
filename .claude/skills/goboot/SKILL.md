@@ -77,7 +77,7 @@ Status: ✅ implemented · 🚧 planned (parse/generate not yet wired).
 | `@ResponseStatus`                                   | method              | positional int                                              | success status                                                 | ✅              |
 | `@ControllerAdvice`                                 | struct              | —                                                           | advice component holding `@ExceptionHandler` methods           | ✅              |
 | `@ExceptionHandler`                                 | method              | `type` (optional; caught type is read from the 2nd param)   | typed error→response dispatch (see below)                      | ✅              |
-| `@Consumes`/`@Produces`                             | method              | —                                                           | media-type constraints                                         | 🚧              |
+| `@Consumes` / `@Produces`                           | method              | positional `[]string` (or the `consumes`/`produces` mapping args) | media-type constraints: unsupported request `Content-Type` → 415, unacceptable `Accept` → 406 (checked before binding) | ✅ |
 
 ### Configuration & lifecycle
 
