@@ -29,6 +29,20 @@ type InterceptedMethod struct {
 	// Authorize, when non-nil, checks authorization before invoking the target
 	// (§34).
 	Authorize *AuthorizeSpec
+
+	// Logged requests structured logging around the call (§35.3); LogLevel is
+	// the level ("debug"|"info"|"warn"|"error", default "info").
+	Logged   bool
+	LogLevel string
+
+	// Audit, when non-nil, records an audit event after the call (§35.4).
+	Audit *AuditSpec
+}
+
+// AuditSpec mirrors @Audit for the generator to render an AuditEvent (§35.4).
+type AuditSpec struct {
+	Action   string
+	Resource string
 }
 
 // AuthorizeSpec mirrors @Authorize/@RolesAllowed for the generator to render an
@@ -60,5 +74,6 @@ type TxOptions struct {
 
 // Intercepts reports whether the method requests any interception.
 func (m InterceptedMethod) Intercepts() bool {
-	return m.Traced || m.Timed || m.Transactional || m.Timeout > 0 || m.Retry != nil || m.Authorize != nil
+	return m.Traced || m.Timed || m.Transactional || m.Timeout > 0 || m.Retry != nil ||
+		m.Authorize != nil || m.Logged || m.Audit != nil
 }

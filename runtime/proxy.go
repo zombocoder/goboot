@@ -48,6 +48,8 @@ type ProxyDependencies struct {
 	Tracer       Tracer
 	Metrics      MethodMetrics
 	Authorizer   Authorizer
+	Logger       MethodLogger
+	Audit        AuditSink
 }
 
 // DefaultProxyDependencies returns proxy dependencies wired with the built-in
@@ -58,5 +60,7 @@ func DefaultProxyDependencies() ProxyDependencies {
 		Tracer:       NoopTracer{},
 		Metrics:      NoopMetrics{},
 		Authorizer:   PermitAllAuthorizer{},
+		Logger:       NoopLogger{},
+		Audit:        NoopAuditSink{},
 	}
 }

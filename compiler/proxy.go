@@ -29,7 +29,7 @@ const (
 )
 
 // interceptAnnotations are the method annotations that trigger proxying.
-var interceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry", "Authorize", "RolesAllowed"}
+var interceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry", "Authorize", "RolesAllowed", "Logged", "Audit"}
 
 // resolveInterface looks up the interface named by @Service(implements=...) in
 // the service's package and returns its type.
@@ -188,6 +188,23 @@ func (a *analysis) interceptedMethod(decl *Declaration) (model.InterceptedMethod
 		m.Retry = retryPolicy(ann)
 	}
 	m.Authorize = authorizeSpec(decl)
+	if ann, ok := decl.Find("Logged"); ok {
+		m.Logged = true
+		m.LogLevel = "info"
+		if s, ok := stringArgValue(ann, "level"); ok {
+			m.LogLevel = s
+		}
+	}
+	if ann, ok := decl.Find("Audit"); ok {
+		spec := &model.AuditSpec{}
+		if s, ok := stringArgValue(ann, "action"); ok {
+			spec.Action = s
+		}
+		if s, ok := stringArgValue(ann, "resource"); ok {
+			spec.Resource = s
+		}
+		m.Audit = spec
+	}
 	return m, true
 }
 

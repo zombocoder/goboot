@@ -35,11 +35,13 @@ type OrderServiceProxy struct {
 	tracer      runtime.Tracer
 	metrics     runtime.MethodMetrics
 	authorizer  runtime.Authorizer
+	logger      runtime.MethodLogger
+	audit       runtime.AuditSink
 }
 
 // NewOrderServiceProxy builds the OrderServiceProxy.
 func NewOrderServiceProxy(target *proxyapp.OrderService, deps runtime.ProxyDependencies) *OrderServiceProxy {
-	return &OrderServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer}
+	return &OrderServiceProxy{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit}
 }
 
 func (p *OrderServiceProxy) CreateOrder(a0 context.Context, a1 string) (r0 string, err error) {
