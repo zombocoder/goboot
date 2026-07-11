@@ -26,7 +26,7 @@ func cmdValidate(args []string, stdout, stderr io.Writer) int {
 	patterns := resolvePatterns(fs.Args(), cfg)
 	strictMode := *strict || cfg.Generation.Strict
 
-	res, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, stderr)
+	res, _, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, stderr)
 	if res == nil {
 		return 1
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/zombocoder/goboot/annotation"
 	"github.com/zombocoder/goboot/compiler"
+	"github.com/zombocoder/goboot/plugin"
 )
 
 // Version identifiers surfaced by `goboot version` (§47).
@@ -84,25 +85,44 @@ func usage(w io.Writer) {
 func cmdVersion(_ []string, stdout, _ io.Writer) int {
 	fmt.Fprintf(stdout, "goboot %s\n", CLIVersion)
 	fmt.Fprintf(stdout, "runtime compatibility %s\n", RequiredRuntimeVersion)
+	plugins := pluginHost().Plugins()
+	if len(plugins) == 0 {
+		fmt.Fprintln(stdout, "plugins: none")
+		return 0
+	}
+	fmt.Fprintln(stdout, "plugins:")
+	for _, p := range plugins {
+		fmt.Fprintf(stdout, "\t%s %s\n", p.Name(), p.Version())
+	}
 	return 0
 }
 
-// analyzeCommon loads and analyzes the given patterns, printing diagnostics to
-// stderr. It returns the analysis result and the number of blocking errors
-// (warnings counted as errors when strict).
-func analyzeCommon(dir string, patterns []string, tags string, strict bool, stderr io.Writer) (*compiler.AnalysisResult, int) {
-	loader := &compiler.Loader{Dir: dir}
+// analyzeCommon loads and analyzes the given patterns, running plugin
+// annotations and analyzers through the host, and prints diagnostics to stderr.
+// It returns the analysis result, the plugin host, and the number of blocking
+// errors (warnings counted as errors when strict).
+func analyzeCommon(dir string, patterns []string, tags string, strict bool, stderr io.Writer) (*compiler.AnalysisResult, *plugin.Registry, int) {
+	host := pluginHost()
+	registry, regDiags := host.AnnotationRegistry()
+
+	loader := &compiler.Loader{Dir: dir, Registry: registry}
 	if tags != "" {
 		loader.BuildFlags = []string{"-tags=" + tags}
 	}
 	scan, err := loader.Load(patterns...)
 	if err != nil {
 		fmt.Fprintf(stderr, "goboot: %v\n", err)
-		return nil, 1
+		return nil, host, 1
 	}
 	res := compiler.Analyze(scan)
-	errCount := printDiagnostics(stderr, res.Diagnostics, strict)
-	return res, errCount
+
+	// Combine core, plugin-registration, and plugin-analyzer diagnostics.
+	diags := append([]*annotation.Diagnostic(nil), regDiags...)
+	diags = append(diags, res.Diagnostics...)
+	diags = append(diags, host.Analyze(res.App)...)
+
+	errCount := printDiagnostics(stderr, diags, strict)
+	return res, host, errCount
 }
 
 // printDiagnostics writes diagnostics in deterministic position order and
