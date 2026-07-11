@@ -23,6 +23,7 @@
     "url": "https://github.com/zombocoder/goboot",
     "directory": "editors/vscode"
   },
+  "icon": "icon.png",
   "galleryBanner": {
     "color": "#00ADD8",
     "theme": "dark"

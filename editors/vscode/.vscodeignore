@@ -3,3 +3,4 @@ testdata/**
 .vscodeignore
 **/.DS_Store
 **/*.map
+icon.svg
