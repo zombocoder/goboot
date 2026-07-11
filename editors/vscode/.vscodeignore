@@ -3,4 +3,4 @@ testdata/**
 .vscodeignore
 **/.DS_Store
 **/*.map
-icon.svg
+goboot-logo.png
