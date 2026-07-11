@@ -223,19 +223,19 @@ func TestLoadErrorsSurfaced(t *testing.T) {
 }
 
 func TestUnknownAnnotationWarning(t *testing.T) {
-	// @Query is not part of the v0.1 core catalogue; it should surface as a
-	// warning, not an error, so the build is not blocked.
-	res := loadPkg(t, "./testdata/basic")
+	// An unregistered annotation should surface as a warning, not an error, so
+	// the build is not blocked.
+	res := loadPkg(t, "./testdata/unknownann")
 	var warn *annotation.Diagnostic
 	for _, d := range res.Diagnostics {
-		if d.Code == annotation.CodeUnknownAnnotation && strings.Contains(d.Message, "Query") {
+		if d.Code == annotation.CodeUnknownAnnotation && strings.Contains(d.Message, "Frobnicate") {
 			warn = d
 		}
 	}
 	if warn == nil {
-		t.Fatal("expected an unknown-annotation warning for @Query")
+		t.Fatal("expected an unknown-annotation warning for @Frobnicate")
 	}
 	if warn.Severity != annotation.SeverityWarning {
-		t.Errorf("@Query diagnostic severity = %v, want warning", warn.Severity)
+		t.Errorf("@Frobnicate diagnostic severity = %v, want warning", warn.Severity)
 	}
 }

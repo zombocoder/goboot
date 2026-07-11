@@ -20,6 +20,7 @@ type projectConfig struct {
 		Package string `yaml:"package"`
 		Clean   bool   `yaml:"clean"`
 		Strict  bool   `yaml:"strict"`
+		Dialect string `yaml:"dialect"`
 	} `yaml:"generation"`
 }
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/zombocoder/goboot/generator/di"
+	"github.com/zombocoder/goboot/sqlgen"
 )
 
 // generatedFilePrefix marks files goboot produces (§40); clean removes files
@@ -27,6 +28,7 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 		tags    = fs.String("tags", "", "comma-separated build tags")
 		strict  = fs.Bool("strict", false, "treat warnings as errors")
 		clean   = fs.Bool("clean", false, "remove existing generated files first")
+		dialect = fs.String("dialect", "", "SQL dialect for repositories: postgres (default) or question")
 		verbose = fs.Bool("verbose", false, "print progress")
 	)
 	if err := fs.Parse(args); err != nil {
@@ -53,7 +55,14 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	src, err := di.Generate(res.App, res.Graph, di.Options{Package: pkgName})
+	dialectName := firstNonEmpty(*dialect, cfg.Generation.Dialect)
+	sqlDialect, ok := sqlgen.DialectByName(dialectName)
+	if !ok {
+		fmt.Fprintf(stderr, "goboot: unknown SQL dialect %q\n", dialectName)
+		return 2
+	}
+
+	src, err := di.Generate(res.App, res.Graph, di.Options{Package: pkgName, Dialect: sqlDialect})
 	if err != nil {
 		fmt.Fprintf(stderr, "goboot: %v\n", err)
 		return 1

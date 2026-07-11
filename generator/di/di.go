@@ -15,6 +15,7 @@ import (
 
 	"github.com/zombocoder/goboot/graph"
 	"github.com/zombocoder/goboot/model"
+	"github.com/zombocoder/goboot/sqlgen"
 )
 
 // GeneratedMarker is the line that identifies goboot-generated files (§6.3).
@@ -27,6 +28,10 @@ type Options struct {
 	// SelfPath is the import path of the generated package; references to it are
 	// left unqualified. It may be empty.
 	SelfPath string
+	// Dialect selects the SQL placeholder style for generated repositories
+	// (§27.4). Nil defaults to sqlgen.Postgres. This is the seam a database
+	// driver adapter or plugin swaps.
+	Dialect sqlgen.Dialect
 }
 
 // binding pairs a component with the local variable and struct field names the
@@ -48,6 +53,9 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 	if opts.Package == "" {
 		opts.Package = "generated"
 	}
+	if opts.Dialect == nil {
+		opts.Dialect = sqlgen.Postgres
+	}
 
 	feats := detectFeatures(app)
 
@@ -65,12 +73,18 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 	if feats.hasProxies {
 		im.add(runtimePath, "runtime")
 	}
+	if feats.hasRepos {
+		im.add(dbPath, "db")
+	}
 	reserved := map[string]bool{"err": true, "out": true}
 	if feats.hasConfig {
 		reserved["configSource"] = true
 	}
 	if feats.hasProxies {
 		reserved["proxyDeps"] = true
+	}
+	if feats.hasRepos {
+		reserved["dbProvider"] = true
 	}
 	for _, alias := range im.aliases() {
 		reserved[alias] = true
@@ -91,6 +105,7 @@ func Generate(app *model.Application, g *graph.Graph, opts Options) (string, err
 		returnStmt:    renderReturn(bindings),
 		configLoaders: renderConfigLoaders(app, im),
 		proxyPart:     renderProxies(app, byID, im),
+		repoPart:      renderRepositories(app, im, opts.Dialect),
 		httpPart:      renderHTTP(app, byID, im),
 		lifecyclePart: renderLifecycle(app, bindings, byID, im, feats),
 		appPart:       renderApplication(app, im, feats),
@@ -181,6 +196,12 @@ func renderConstructor(bd *binding, byID map[model.ComponentID]*binding, im *imp
 			bd.local, ctor.FuncName), nil
 	}
 
+	// A generated repository is constructed from the db provider by a locally
+	// generated constructor.
+	if ctor != nil && ctor.RepositoryImpl {
+		return fmt.Sprintf("\t%s := %s(dbProvider)\n", bd.local, ctor.FuncName), nil
+	}
+
 	// A proxy wraps its already-constructed target with the proxy dependencies
 	// bundle. Its constructor is generated locally in this package.
 	if c.Kind == model.ComponentProxy {
@@ -267,6 +288,7 @@ type sections struct {
 	returnStmt    string
 	configLoaders string
 	proxyPart     string
+	repoPart      string
 	httpPart      string
 	lifecyclePart string
 	appPart       string
@@ -289,7 +311,7 @@ func assemble(sec sections, im *imports) string {
 	}
 	b.WriteString(sec.returnStmt)
 	b.WriteString("}\n")
-	for _, part := range []string{sec.configLoaders, sec.proxyPart, sec.httpPart, sec.lifecyclePart, sec.appPart} {
+	for _, part := range []string{sec.configLoaders, sec.proxyPart, sec.repoPart, sec.httpPart, sec.lifecyclePart, sec.appPart} {
 		if part != "" {
 			b.WriteString("\n")
 			b.WriteString(part)

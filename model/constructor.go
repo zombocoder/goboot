@@ -38,6 +38,9 @@ type Constructor struct {
 	// emits a Load<Type> function and constructs the component from the
 	// application's config.Source.
 	ConfigLoader bool
+	// RepositoryImpl reports that the component is a generated repository
+	// implementation (§27) constructed from a db.DBProvider.
+	RepositoryImpl bool
 	// Position is the source location of the function declaration.
 	Position token.Position
 }

@@ -139,6 +139,10 @@ type Component struct {
 	// ProxyTarget is set on a ComponentProxy: the ID of the concrete component
 	// it wraps.
 	ProxyTarget ComponentID
+	// Repository is set on a ComponentRepository whose implementation is
+	// generated from @Query/@Exec methods (§27.2); nil for component-mode
+	// repositories.
+	Repository *RepositoryInfo
 	// PostConstruct is the component's @PostConstruct hook, or nil.
 	PostConstruct *LifecycleMethod
 	// PreDestroy is the component's @PreDestroy hook, or nil.
