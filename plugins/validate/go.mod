@@ -2,7 +2,7 @@ module github.com/zombocoder/goboot/plugins/validate
 
 go 1.25.0
 
-require github.com/zombocoder/goboot v0.1.0
+require github.com/zombocoder/goboot v0.1.1
 
 require (
 	golang.org/x/mod v0.38.0 // indirect
