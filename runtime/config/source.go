@@ -55,14 +55,16 @@ func (e EnvSource) Get(key string) (string, bool) {
 	return "", false
 }
 
-// EnvName converts a dotted configuration key into an environment variable name.
+// EnvName converts a dotted configuration key into an environment variable name:
+// the prefix and key are joined, then every "." and "-" separator is replaced
+// with "_" and the whole name upper-cased. The prefix is sanitized too, so a
+// dotted or hyphenated prefix cannot produce an invalid variable name.
 func EnvName(prefix, key string) string {
-	replacer := strings.NewReplacer(".", "_", "-", "_")
-	name := strings.ToUpper(replacer.Replace(key))
+	name := key
 	if prefix != "" {
-		return strings.ToUpper(prefix) + "_" + name
+		name = prefix + "_" + key
 	}
-	return name
+	return strings.ToUpper(strings.NewReplacer(".", "_", "-", "_").Replace(name))
 }
 
 // Layered composes sources in priority order: the first source to report a key

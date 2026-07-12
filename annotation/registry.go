@@ -42,6 +42,15 @@ func (r *Registry) Lookup(name string) (*Definition, bool) {
 	return d, ok
 }
 
+// names returns the registered annotation names, for typo suggestions.
+func (r *Registry) names() []string {
+	out := make([]string, 0, len(r.defs))
+	for n := range r.defs {
+		out = append(out, n)
+	}
+	return out
+}
+
 // Validate checks a single annotation against its registered schema for the
 // given target. An unregistered annotation yields a single warning-severity
 // diagnostic (GOBANN002) rather than an error, so that unknown or plugin
@@ -52,7 +61,7 @@ func (r *Registry) Validate(ann Annotation, target Target) []*Diagnostic {
 		return []*Diagnostic{{
 			Severity: SeverityWarning,
 			Code:     CodeUnknownAnnotation,
-			Message:  fmt.Sprintf("unknown annotation @%s", ann.Name),
+			Message:  fmt.Sprintf("unknown annotation @%s%s", ann.Name, didYouMean(ann.Name, "@", r.names())),
 			Position: ann.Position,
 		}}
 	}

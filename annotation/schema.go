@@ -105,6 +105,15 @@ func (d *Definition) AllowsTarget(target Target) bool {
 	return slices.Contains(d.Targets, target)
 }
 
+// argNames returns the declared named-argument names, for typo suggestions.
+func (d *Definition) argNames() []string {
+	out := make([]string, 0, len(d.Arguments))
+	for n := range d.Arguments {
+		out = append(out, n)
+	}
+	return out
+}
+
 // validate checks a single annotation instance against this definition,
 // returning diagnostics for every problem found. target is the declaration the
 // annotation was attached to.
@@ -130,7 +139,7 @@ func (d *Definition) validate(ann Annotation, target Target) []*Diagnostic {
 		def, ok := d.Arguments[name]
 		if !ok {
 			diags = append(diags, newError(CodeUnknownArgument, ann.Position,
-				"unknown argument %q in annotation @%s", name, d.Name))
+				"unknown argument %q in annotation @%s%s", name, d.Name, didYouMean(name, "", d.argNames())))
 			continue
 		}
 		diags = appendArgDiags(diags, d.Name, name, def, val, ann.Position)
