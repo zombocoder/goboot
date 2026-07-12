@@ -45,7 +45,7 @@ func validateApiCreateUserRequest(v api.CreateUserRequest) error {
 	if v.Name == "" {
 		errs = append(errs, runtime.FieldError{Field: "name", Code: "required", Message: "name is required"})
 	}
-	if utf8.RuneCountInString(v.Name) < 3 {
+	if utf8.RuneCountInString(v.Name) > 0 && utf8.RuneCountInString(v.Name) < 3 {
 		errs = append(errs, runtime.FieldError{Field: "name", Code: "size", Message: "name must have at least 3 characters"})
 	}
 	if utf8.RuneCountInString(v.Name) > 40 {

@@ -196,7 +196,11 @@ func writeFieldChecks(b *strings.Builder, f fieldRule) {
 			fmt.Sprintf("%s must be at most %d", f.wire, *f.max))
 	}
 	if f.sizeMin != nil {
-		emit(lenExpr(f, expr)+fmt.Sprintf(" < %d", *f.sizeMin), "size",
+		// A minimum length is only enforced on a present (non-empty) value:
+		// emptiness is @Required's concern, so a required field never
+		// double-reports both "required" and "size" for a missing value.
+		n := lenExpr(f, expr)
+		emit(fmt.Sprintf("%s > 0 && %s < %d", n, n, *f.sizeMin), "size",
 			fmt.Sprintf("%s must have at least %d %s", f.wire, *f.sizeMin, sizeUnit(f)))
 	}
 	if f.sizeMax != nil {

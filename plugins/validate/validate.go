@@ -54,7 +54,7 @@ func New() *Plugin { return &Plugin{} }
 func (*Plugin) Name() string { return "validate" }
 
 // Version is the plugin's own version.
-func (*Plugin) Version() string { return "0.1.2" }
+func (*Plugin) Version() string { return "0.1.3" }
 
 // Annotations registers the field-constraint annotations so the compiler
 // recognizes them instead of reporting them as unknown.
