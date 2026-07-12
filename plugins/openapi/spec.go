@@ -17,8 +17,12 @@ import (
 func buildDocument(app *model.Application) ([]byte, error) {
 	schemas := map[string]any{}
 	paths := map[string]any{}
+	secured := false
 
 	for _, r := range app.Routes {
+		if len(r.Authorize) > 0 {
+			secured = true
+		}
 		item, ok := paths[r.Pattern].(map[string]any)
 		if !ok {
 			item = map[string]any{}
@@ -35,8 +39,24 @@ func buildDocument(app *model.Application) ([]byte, error) {
 		},
 		"paths": paths,
 	}
+	components := map[string]any{}
 	if len(schemas) > 0 {
-		doc["components"] = map[string]any{"schemas": schemas}
+		components["schemas"] = schemas
+	}
+	if secured {
+		// A bearer (JWT) scheme so Swagger UI offers an Authorize button that
+		// sends `Authorization: Bearer <token>` on secured operations.
+		components["securitySchemes"] = map[string]any{
+			"bearerAuth": map[string]any{
+				"type":         "http",
+				"scheme":       "bearer",
+				"bearerFormat": "JWT",
+				"description":  "Bearer access token (e.g. an OIDC / Keycloak JWT).",
+			},
+		}
+	}
+	if len(components) > 0 {
+		doc["components"] = components
 	}
 	return json.MarshalIndent(doc, "", "  ")
 }
@@ -53,7 +73,11 @@ func titleOf(app *model.Application) string {
 func operationFor(r *model.Route, schemas map[string]any) map[string]any {
 	op := map[string]any{"operationId": r.HandlerName}
 	if len(r.Authorize) > 0 {
-		op["security"] = []any{map[string]any{"roles": toAny(r.Authorize)}}
+		// Reference the bearerAuth scheme defined in components.securitySchemes so
+		// Swagger UI shows an Authorize button; the required roles go in the
+		// description (OpenAPI security requirements carry scopes, not roles).
+		op["security"] = []any{map[string]any{"bearerAuth": []any{}}}
+		op["description"] = "Requires role: " + strings.Join(r.Authorize, ", ")
 	}
 	if params := parametersFor(r, schemas); len(params) > 0 {
 		op["parameters"] = params
@@ -325,12 +349,4 @@ func statusText(code int) string {
 		return t
 	}
 	return "Response"
-}
-
-func toAny(ss []string) []any {
-	out := make([]any, len(ss))
-	for i, s := range ss {
-		out[i] = s
-	}
-	return out
 }

@@ -28,7 +28,7 @@ type Plugin struct{}
 func (*Plugin) Name() string { return "openapi" }
 
 // Version is the plugin's own version.
-func (*Plugin) Version() string { return "0.1.0" }
+func (*Plugin) Version() string { return "0.1.1" }
 
 // Generate builds the OpenAPI document from the application's routes. It emits
 // nothing when the application declares no routes.

@@ -56,3 +56,11 @@ type CreateWidgetRequest struct {
 func (c *WidgetController) CreateWidget(ctx context.Context, req CreateWidgetRequest) (*Widget, error) {
 	return &Widget{Name: req.Name, Quantity: req.Quantity}, nil
 }
+
+// DeleteWidget removes a widget; it requires the "admin" role.
+//
+// @DeleteMapping(path="/{id}")
+// @Authorize(roles=["admin"])
+func (c *WidgetController) DeleteWidget(ctx context.Context, req GetWidgetRequest) error {
+	return nil
+}

@@ -145,3 +145,35 @@ func keys(m map[string]any) []string {
 	}
 	return out
 }
+
+func TestSecuritySchemeAndRequirement(t *testing.T) {
+	doc := generateSpec(t)
+	comps, ok := doc["components"].(map[string]any)
+	if !ok {
+		t.Fatal("no components")
+	}
+	schemes, ok := comps["securitySchemes"].(map[string]any)
+	if !ok {
+		t.Fatal("no components.securitySchemes")
+	}
+	bearer, ok := schemes["bearerAuth"].(map[string]any)
+	if !ok {
+		t.Fatalf("no bearerAuth scheme; got %v", schemes)
+	}
+	if bearer["type"] != "http" || bearer["scheme"] != "bearer" {
+		t.Errorf("bearerAuth = %v, want http/bearer", bearer)
+	}
+	// The secured DELETE references the scheme; the unsecured GET does not.
+	item := doc["paths"].(map[string]any)["/widgets/{id}"].(map[string]any)
+	del := item["delete"].(map[string]any)
+	sec, ok := del["security"].([]any)
+	if !ok || len(sec) != 1 {
+		t.Fatalf("delete security = %v", del["security"])
+	}
+	if _, ok := sec[0].(map[string]any)["bearerAuth"]; !ok {
+		t.Errorf("delete security requirement = %v, want bearerAuth", sec[0])
+	}
+	if _, ok := item["get"].(map[string]any)["security"]; ok {
+		t.Error("unsecured GET should carry no security requirement")
+	}
+}
