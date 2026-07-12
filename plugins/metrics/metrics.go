@@ -51,11 +51,19 @@ func New() *Plugin { return &Plugin{} }
 func (*Plugin) Name() string { return "metrics" }
 
 // Version is the plugin's own version.
-func (*Plugin) Version() string { return "0.1.0" }
+func (*Plugin) Version() string { return "0.1.1" }
 
 // Annotations registers @Counter and @Gauge so the compiler recognizes them.
+// They may be declared on a method, function, or any type — including a plain
+// marker struct — since a metric is a declaration, not tied to a callable.
 func (*Plugin) Annotations() []*annotation.Definition {
-	targets := []annotation.Target{annotation.TargetMethod, annotation.TargetType}
+	targets := []annotation.Target{
+		annotation.TargetMethod,
+		annotation.TargetFunction,
+		annotation.TargetType,
+		annotation.TargetStruct,
+		annotation.TargetInterface,
+	}
 	args := map[string]annotation.ArgumentDefinition{
 		"name":      {Type: annotation.ArgString, Required: true},
 		"help":      {Type: annotation.ArgString},

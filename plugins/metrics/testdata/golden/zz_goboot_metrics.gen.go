@@ -8,6 +8,7 @@ import "github.com/prometheus/client_golang/prometheus"
 
 var (
 	metricCacheHitsTotal       = prometheus.NewCounter(prometheus.CounterOpts{Name: "cache_hits_total", Help: "Order cache hits"})
+	metricHttpRequestsTotal    = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "HTTP requests, by method"}, []string{"method"})
 	metricOrdersProcessedTotal = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "orders_processed_total", Help: "Orders processed, by status"}, []string{"status"})
 	metricOrdersQueueDepth     = prometheus.NewGauge(prometheus.GaugeOpts{Namespace: "orders", Name: "queue_depth", Help: "Pending items in the queue"})
 )
@@ -17,6 +18,7 @@ var (
 func RegisterMetrics(reg prometheus.Registerer) {
 	reg.MustRegister(
 		metricCacheHitsTotal,
+		metricHttpRequestsTotal,
 		metricOrdersProcessedTotal,
 		metricOrdersQueueDepth,
 	)
@@ -24,6 +26,9 @@ func RegisterMetrics(reg prometheus.Registerer) {
 
 // CacheHitsTotal returns the registered "cache_hits_total" counter.
 func CacheHitsTotal() prometheus.Counter { return metricCacheHitsTotal }
+
+// HttpRequestsTotal returns the registered "http_requests_total" counter.
+func HttpRequestsTotal() *prometheus.CounterVec { return metricHttpRequestsTotal }
 
 // OrdersProcessedTotal returns the registered "orders_processed_total" counter.
 func OrdersProcessedTotal() *prometheus.CounterVec { return metricOrdersProcessedTotal }
