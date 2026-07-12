@@ -45,7 +45,7 @@ func TestSecuredRoute(t *testing.T) {
 		{
 			name: "anonymous is unauthorized",
 			deps: runtime.DefaultHTTPHandlerDependencies, // AnonymousAuthenticator + RoleAuthorizer
-			want: http.StatusUnauthorized,               // 401
+			want: http.StatusUnauthorized,                // 401
 		},
 		{
 			name: "invalid credential is unauthorized",
