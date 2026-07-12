@@ -20,7 +20,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: "1.25"
           check-latest: true
 
       - name: Verify gofmt
@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: "1.25"
           check-latest: true
       # Run each fuzz target briefly to catch panics on new inputs.
       - name: Fuzz annotation parser
@@ -77,6 +77,18 @@ jobs:
       - name: Fuzz config list parser
         run: go test ./runtime/config/ -run '^$' -fuzz FuzzSplitList -fuzztime 20s
 
+  coverage:
+    name: coverage floors
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          check-latest: true
+      - name: Enforce coverage floors
+        run: ./scripts/coverage-gate.sh
+
   vscode-grammar:
     name: vscode grammar
     runs-on: ubuntu-latest
@@ -84,7 +96,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
       # Tokenize sample annotations and assert the grammar's scopes.
       - name: Grammar tokenization test
         working-directory: editors/vscode/test
