@@ -204,6 +204,24 @@ func renderHandler(route *model.Route, ctrl *binding, im *imports, rt, httpPkg f
 		b.WriteString("\t\t}\n")
 	}
 
+	// Authenticate and authorize before binding: a secured route rejects an
+	// unauthenticated (401) or unauthorized (403) caller before the body is read.
+	// The established principal is placed on ctx so downstream authorization
+	// (e.g. service-proxy @Authorize) and the controller can read it.
+	if len(route.Authorize) > 0 {
+		b.WriteString("\t\tprincipal, err := deps.Authenticator.Authenticate(ctx, r)\n")
+		b.WriteString("\t\tif err != nil {\n")
+		b.WriteString(handleAndReturn())
+		b.WriteString("\t\t}\n")
+		fmt.Fprintf(&b, "\t\tctx = %s(ctx, principal)\n", rt("WithPrincipal"))
+		fmt.Fprintf(&b, "\t\tif err := deps.Authorizer.Authorize(ctx, %s{\n", rt("AuthorizationRequest"))
+		fmt.Fprintf(&b, "\t\t\tRoles: %s,\n", stringSliceLit(route.Authorize))
+		fmt.Fprintf(&b, "\t\t\tMode:  %s,\n", rt("AuthorizationModeAny"))
+		b.WriteString("\t\t}); err != nil {\n")
+		b.WriteString(handleAndReturn())
+		b.WriteString("\t\t}\n")
+	}
+
 	callArgs := []string{"ctx"}
 	if route.HasRequest() {
 		reqType := renderType(route.RequestType, im)
@@ -219,15 +237,6 @@ func renderHandler(route *model.Route, ctrl *binding, im *imports, rt, httpPkg f
 		} else {
 			callArgs = append(callArgs, "request")
 		}
-	}
-
-	if len(route.Authorize) > 0 {
-		fmt.Fprintf(&b, "\t\tif err := deps.Authorizer.Authorize(ctx, %s{\n", rt("AuthorizationRequest"))
-		fmt.Fprintf(&b, "\t\t\tRoles: %s,\n", stringSliceLit(route.Authorize))
-		fmt.Fprintf(&b, "\t\t\tMode:  %s,\n", rt("AuthorizationModeAny"))
-		b.WriteString("\t\t}); err != nil {\n")
-		b.WriteString(handleAndReturn())
-		b.WriteString("\t\t}\n")
 	}
 
 	call := fmt.Sprintf("%s.%s(%s)", recv, route.HandlerName, strings.Join(callArgs, ", "))

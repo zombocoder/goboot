@@ -386,6 +386,39 @@ func TestAuthE2EWiringUpToDate(t *testing.T) {
 	}
 }
 
+// TestAuthHTTPE2EWiringUpToDate guards the committed HTTP route-level @Authorize
+// wiring and asserts the authenticate → WithPrincipal → authorize pipeline is
+// rendered in the handler.
+func TestAuthHTTPE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/authhttpapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	src, err := Generate(res.App, res.Graph, Options{Package: "authhttpe2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		"principal, err := deps.Authenticator.Authenticate(ctx, r)",
+		"ctx = runtime.WithPrincipal(ctx, principal)",
+		`deps.Authorizer.Authorize(ctx, runtime.AuthorizationRequest{`,
+		`Roles: []string{"user"}`,
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated HTTP auth wiring missing %q", want)
+		}
+	}
+	committed, err := os.ReadFile(filepath.Join("..", "..", "internal", "authhttpe2e", "wiring.gen.go"))
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/authhttpe2e/wiring.gen.go is stale; regenerate it from the authhttpapp example")
+	}
+}
+
 // TestResilienceE2EWiringUpToDate guards the committed resilience wiring and
 // asserts the @Retry/@Timeout interceptors are rendered.
 func TestResilienceE2EWiringUpToDate(t *testing.T) {
