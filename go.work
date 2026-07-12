@@ -10,6 +10,7 @@ use (
 	./adapters/pgx
 	./adapters/oidc
 	./adapters/redis
+	./adapters/mysql
 	./adapters/prometheus
 	./plugins/lint
 	./plugins/openapi
