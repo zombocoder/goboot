@@ -24,7 +24,7 @@ import (
 // Version identifiers surfaced by `goboot version` (§47).
 const (
 	// CLIVersion is the compiler/CLI version.
-	CLIVersion = "0.1.3"
+	CLIVersion = "0.1.4"
 	// RequiredRuntimeVersion is the runtime compatibility version generated code
 	// depends on.
 	RequiredRuntimeVersion = "0.1"
