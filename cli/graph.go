@@ -35,7 +35,8 @@ func cmdGraph(args []string, stdout, stderr io.Writer) int {
 	patterns := resolvePatterns(fs.Args(), cfg)
 
 	// Graph output tolerates non-fatal diagnostics; only a load failure aborts.
-	res, _, _ := analyzeCommon(*dir, patterns, *tags, false, compiler.Options{}, stderr)
+	genPkg := generatedPackagePath(*dir, cfg.Generation.Output)
+	res, _, _ := analyzeCommon(*dir, patterns, *tags, false, compiler.Options{}, genPkg, stderr)
 	if res == nil {
 		return 1
 	}

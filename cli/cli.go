@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -113,11 +114,11 @@ func cmdVersion(_ []string, stdout, _ io.Writer) int {
 // annotations and analyzers through the host, and prints diagnostics to stderr.
 // It returns the analysis result, the plugin host, and the number of blocking
 // errors (warnings counted as errors when strict).
-func analyzeCommon(dir string, patterns []string, tags string, strict bool, opts compiler.Options, stderr io.Writer) (*compiler.AnalysisResult, *plugin.Registry, int) {
+func analyzeCommon(dir string, patterns []string, tags string, strict bool, opts compiler.Options, ignorePkg string, stderr io.Writer) (*compiler.AnalysisResult, *plugin.Registry, int) {
 	host := pluginHost()
 	registry, regDiags := host.AnnotationRegistry()
 
-	loader := &compiler.Loader{Dir: dir, Registry: registry}
+	loader := &compiler.Loader{Dir: dir, Registry: registry, IgnorePkgPath: ignorePkg}
 	if tags != "" {
 		loader.BuildFlags = []string{"-tags=" + tags}
 	}
@@ -135,6 +136,59 @@ func analyzeCommon(dir string, patterns []string, tags string, strict bool, opts
 
 	errCount := printDiagnostics(stderr, diags, strict)
 	return res, host, errCount
+}
+
+// generatedPackagePath returns the import path of the output directory, so the
+// loader can ignore the transient errors caused by that package not existing
+// yet (a composition root importing the not-yet-generated wiring). It returns ""
+// — meaning "no suppression" — when the path cannot be determined or the output
+// lies outside the module.
+func generatedPackagePath(dir, outputDir string) string {
+	root, modPath := findModule(dir)
+	if root == "" || modPath == "" {
+		return ""
+	}
+	absOut, err := filepath.Abs(filepath.Join(dir, outputDir))
+	if err != nil {
+		return ""
+	}
+	rel, err := filepath.Rel(root, absOut)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return ""
+	}
+	if rel == "." {
+		return modPath
+	}
+	return modPath + "/" + filepath.ToSlash(rel)
+}
+
+// findModule walks up from dir to the nearest go.mod, returning its directory
+// and declared module path (both empty if none is found).
+func findModule(dir string) (root, modPath string) {
+	d, err := filepath.Abs(dir)
+	if err != nil {
+		return "", ""
+	}
+	for {
+		if data, err := os.ReadFile(filepath.Join(d, "go.mod")); err == nil {
+			return d, modulePathFromGoMod(data)
+		}
+		parent := filepath.Dir(d)
+		if parent == d {
+			return "", ""
+		}
+		d = parent
+	}
+}
+
+// modulePathFromGoMod extracts the module path from go.mod contents.
+func modulePathFromGoMod(data []byte) string {
+	for _, line := range strings.Split(string(data), "\n") {
+		if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, "module ") {
+			return strings.TrimSpace(strings.TrimPrefix(trimmed, "module "))
+		}
+	}
+	return ""
 }
 
 // printDiagnostics writes diagnostics in deterministic position order and

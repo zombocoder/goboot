@@ -31,7 +31,8 @@ func cmdValidate(args []string, stdout, stderr io.Writer) int {
 	patterns := resolvePatterns(fs.Args(), cfg)
 	strictMode := *strict || cfg.Generation.Strict
 
-	res, _, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, conditionOptions(*profile, *property), stderr)
+	genPkg := generatedPackagePath(*dir, cfg.Generation.Output)
+	res, _, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, conditionOptions(*profile, *property), genPkg, stderr)
 	if res == nil {
 		return 1
 	}

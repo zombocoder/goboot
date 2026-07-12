@@ -26,6 +26,11 @@ type Application struct {
 	// this to drive generation and analysis from their own annotations (§46.5);
 	// the core pipeline ignores it.
 	Declarations []AnnotatedDecl
+	// Package is the Go package name the generated wiring is emitted into (the
+	// `generation.package` setting, e.g. "generated"). The generate command sets
+	// it before running plugin Generators so a plugin emitting Go source can
+	// write a matching `package` clause; it is empty during analysis (§46.5).
+	Package string
 }
 
 // DeclarationsWith returns the annotated declarations carrying the named
