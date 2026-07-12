@@ -276,6 +276,17 @@ func coreDefinitions() []*Definition {
 				"maxWait":       arg(ArgDuration),
 			}},
 
+		// ---- Caching (§32) ----------------------------------------------
+		{Name: "Cacheable", Targets: []Target{TargetMethod},
+			Arguments: map[string]ArgumentDefinition{
+				"key": required(ArgString),
+				"ttl": arg(ArgDuration),
+			}},
+		{Name: "CacheEvict", Targets: []Target{TargetMethod},
+			Arguments: map[string]ArgumentDefinition{
+				"key": required(ArgString),
+			}},
+
 		// ---- Repository queries -----------------------------------------
 		{Name: "Query", Targets: []Target{TargetMethod},
 			Positional: &ArgumentDefinition{Type: ArgString},

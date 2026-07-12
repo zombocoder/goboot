@@ -386,6 +386,39 @@ func TestAuthE2EWiringUpToDate(t *testing.T) {
 	}
 }
 
+// TestCacheE2EWiringUpToDate guards the committed @Cacheable / @CacheEvict wiring
+// and asserts the cache check/store/evict is rendered in the proxy.
+func TestCacheE2EWiringUpToDate(t *testing.T) {
+	l := &compiler.Loader{Dir: filepath.Join("..", "..", "compiler")}
+	scan, err := l.Load("./testdata/cacheapp")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	res := compiler.Analyze(scan)
+	src, err := Generate(res.App, res.Graph, Options{Package: "cachee2e"})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	for _, want := range []string{
+		`cacheKey := "store:" + fmt.Sprint(a1)`,
+		"if data, ok, _ := p.cache.Get(a0, cacheKey); ok {",
+		"_ = p.cache.Set(a0, cacheKey, data, 60000000000)",
+		`cacheEvictKey := "store:" + fmt.Sprint(a1)`,
+		"_ = p.cache.Delete(a0, cacheEvictKey)",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("generated cache wiring missing %q", want)
+		}
+	}
+	committed, err := os.ReadFile(filepath.Join("..", "..", "internal", "cachee2e", "wiring.gen.go"))
+	if err != nil {
+		t.Fatalf("reading committed wiring: %v", err)
+	}
+	if src != string(committed) {
+		t.Errorf("internal/cachee2e/wiring.gen.go is stale; regenerate it from the cacheapp example")
+	}
+}
+
 // TestAuthHTTPE2EWiringUpToDate guards the committed HTTP route-level @Authorize
 // wiring and asserts the authenticate → WithPrincipal → authorize pipeline is
 // rendered in the handler.
