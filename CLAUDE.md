@@ -18,6 +18,8 @@ Implemented packages:
 - `adapters/pgx/` — native PostgreSQL binding over `jackc/pgx/v5` (`pgxpool`): `db.DBProvider` + `TransactionManager`. A **separate module** (isolates the pgx dependency); pair with the default `postgres` dialect
 - `adapters/otel/` — `runtime.Tracer` over OpenTelemetry (real spans for `@Traced`); separate module
 - `adapters/prometheus/` — `runtime.MethodMetrics` over Prometheus (`goboot_method_calls_total{method,outcome}` for `@Timed`); separate module
+- `adapters/oidc/` — `runtime.Authenticator` over an OIDC provider (Keycloak): validates `Authorization: Bearer` JWTs (JWKS/iss/aud/exp) into a `runtime.Principal`; pairs with the secure-by-default HTTP wiring (`@Authorize` + `RoleAuthorizer`). Separate module
+- `adapters/redis/` — `runtime.Cache` over `redis/go-redis/v9`, backing the `@Cacheable`/`@CacheEvict` interceptors with a shared cache. The seam is `runtime.Cache` (in-memory `MemoryCache` default in `ProxyDependencies`); `@Cacheable(key="…#{arg}…", ttl="…")` proxies read-through and `@CacheEvict(key=…)` invalidate on success (§32). Separate module
 - `plugin/` — the compile-time extension API (annotations, analyzers, generators, SQL dialects/drivers); `plugin/exampleplugin/` is a reference plugin exercising all four capabilities
 - `cli/` — the importable CLI implementation (`cli.Main(plugins...)`, `cli.Run`): `generate`, `validate`, `graph`, `clean`, `doctor`, `init`, `plugins`, `version`; injected plugins live in the `hostPlugins` var
 - `cmd/goboot/` — the thin default binary; a thin `main` calling `cli.Main()` with no plugins
