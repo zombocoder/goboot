@@ -70,6 +70,12 @@ jobs:
         run: go test ./annotation/ -run '^$' -fuzz FuzzParseComment -fuzztime 20s
       - name: Fuzz SQL compiler
         run: go test ./sqlgen/ -run '^$' -fuzz FuzzCompile -fuzztime 20s
+      - name: Fuzz path-template builder
+        run: go test ./compiler/ -run '^$' -fuzz FuzzJoinPath -fuzztime 20s
+      - name: Fuzz config-key env mapping
+        run: go test ./runtime/config/ -run '^$' -fuzz FuzzEnvName -fuzztime 20s
+      - name: Fuzz config list parser
+        run: go test ./runtime/config/ -run '^$' -fuzz FuzzSplitList -fuzztime 20s
 
   vscode-grammar:
     name: vscode grammar

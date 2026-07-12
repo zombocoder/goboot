@@ -76,6 +76,11 @@ func TestEnvName(t *testing.T) {
 	if got := EnvName("", "server.port"); got != "SERVER_PORT" {
 		t.Errorf("EnvName no prefix = %q", got)
 	}
+	// A dotted or hyphenated prefix is sanitized too, never leaking into the
+	// variable name.
+	if got := EnvName("my-app.web", "db.url"); got != "MY_APP_WEB_DB_URL" {
+		t.Errorf("EnvName sanitized prefix = %q", got)
+	}
 }
 
 func TestFlattenYAML(t *testing.T) {
