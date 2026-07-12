@@ -16,6 +16,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	driver "github.com/go-sql-driver/mysql"
 	"github.com/zombocoder/goboot/adapters/databasesql"
@@ -23,14 +24,27 @@ import (
 	"github.com/zombocoder/goboot/runtime/db"
 )
 
+// Option tunes the connection pool Open returns. Without any options the pool
+// keeps database/sql's defaults — no magic numbers are imposed.
+type Option func(*sql.DB)
+
+// WithMaxOpenConns caps the number of open connections (0 = unlimited).
+func WithMaxOpenConns(n int) Option { return func(p *sql.DB) { p.SetMaxOpenConns(n) } }
+
+// WithMaxIdleConns caps the idle connection pool.
+func WithMaxIdleConns(n int) Option { return func(p *sql.DB) { p.SetMaxIdleConns(n) } }
+
+// WithConnMaxLifetime bounds how long a connection may be reused.
+func WithConnMaxLifetime(d time.Duration) Option { return func(p *sql.DB) { p.SetConnMaxLifetime(d) } }
+
+// WithConnMaxIdleTime bounds how long a connection may sit idle.
+func WithConnMaxIdleTime(d time.Duration) Option { return func(p *sql.DB) { p.SetConnMaxIdleTime(d) } }
+
 // Open opens a MySQL connection pool for dsn (go-sql-driver format,
 // "user:pass@tcp(host:port)/dbname?params"). It forces parseTime so DATETIME /
-// TIMESTAMP columns scan into time.Time — which generated repositories rely on.
-//
-// It neither verifies connectivity nor tunes the pool: call pool.Ping to check
-// the connection, and pool.SetMaxOpenConns / SetConnMaxLifetime / … on the
-// returned *sql.DB to size it for your deployment.
-func Open(dsn string) (*sql.DB, error) {
+// TIMESTAMP columns scan into time.Time — which generated repositories rely on —
+// and applies any pool options. It does not verify connectivity; call pool.Ping.
+func Open(dsn string, opts ...Option) (*sql.DB, error) {
 	cfg, err := driver.ParseDSN(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("mysql: parsing DSN: %w", err)
@@ -40,7 +54,11 @@ func Open(dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("mysql: building connector: %w", err)
 	}
-	return sql.OpenDB(connector), nil
+	pool := sql.OpenDB(connector)
+	for _, o := range opts {
+		o(pool)
+	}
+	return pool, nil
 }
 
 // NewProvider returns a db.DBProvider backed by the MySQL pool. It joins the

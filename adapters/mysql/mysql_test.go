@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	goruntime "github.com/zombocoder/goboot/runtime"
@@ -12,13 +13,18 @@ import (
 )
 
 func TestOpen(t *testing.T) {
-	pool, err := Open("user:pass@tcp(localhost:3306)/app?charset=utf8mb4")
+	pool, err := Open("user:pass@tcp(localhost:3306)/app?charset=utf8mb4",
+		WithMaxOpenConns(7),
+		WithMaxIdleConns(3),
+		WithConnMaxLifetime(time.Minute),
+		WithConnMaxIdleTime(30*time.Second),
+	)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
 	defer pool.Close()
-	if pool == nil {
-		t.Fatal("expected a non-nil pool")
+	if got := pool.Stats().MaxOpenConnections; got != 7 {
+		t.Errorf("WithMaxOpenConns not applied: MaxOpenConnections = %d, want 7", got)
 	}
 	if _, err := Open("not-a-valid-dsn"); err == nil {
 		t.Error("expected an error for a malformed DSN")
