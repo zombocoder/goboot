@@ -13,6 +13,7 @@ use (
 	./adapters/mysql
 	./adapters/prometheus
 	./plugins/lint
+	./plugins/metrics
 	./plugins/openapi
 	./plugins/oracle
 	./plugins/validate
