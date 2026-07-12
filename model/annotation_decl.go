@@ -2,6 +2,7 @@ package model
 
 import (
 	"go/token"
+	"go/types"
 
 	"github.com/zombocoder/goboot/annotation"
 )
@@ -26,6 +27,10 @@ type AnnotatedDecl struct {
 	Annotations []annotation.Annotation
 	// Position is the source location of the declaration.
 	Position token.Position
+	// Signature is the function/method signature for method and function
+	// targets, enabling plugins to inspect parameter and result types (e.g. a
+	// message-handler payload); nil for other targets.
+	Signature *types.Signature
 }
 
 // Find returns the first annotation with the given name and whether it exists.
