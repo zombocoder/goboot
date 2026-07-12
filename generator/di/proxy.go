@@ -42,8 +42,12 @@ func renderProxyType(proxy, target *model.Component, iface *types.Interface, im 
 	targetTypeName := target.Named.Obj().Name()
 
 	intercepted := make(map[string]model.InterceptedMethod, len(proxy.Intercepted))
+	usesCache := false
 	for _, m := range proxy.Intercepted {
 		intercepted[m.Name] = m
+		if m.Cacheable != nil || m.CacheEvict != nil {
+			usesCache = true
+		}
 	}
 
 	var b strings.Builder
@@ -60,12 +64,19 @@ func renderProxyType(proxy, target *model.Component, iface *types.Interface, im 
 	fmt.Fprintf(&b, "\tbreakers     %s\n", rt("CircuitBreakerProvider"))
 	fmt.Fprintf(&b, "\trateLimiters %s\n", rt("RateLimiterProvider"))
 	fmt.Fprintf(&b, "\tbulkheads    %s\n", rt("BulkheadProvider"))
+	if usesCache {
+		fmt.Fprintf(&b, "\tcache        %s\n", rt("Cache"))
+	}
 	b.WriteString("}\n\n")
 
 	// Constructor.
+	ctorFields := "target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit, breakers: deps.Breakers, rateLimiters: deps.RateLimiters, bulkheads: deps.Bulkheads"
+	if usesCache {
+		ctorFields += ", cache: deps.Cache"
+	}
 	fmt.Fprintf(&b, "// New%s builds the %s.\n", proxyName, proxyName)
 	fmt.Fprintf(&b, "func New%s(target %s, deps %s) *%s {\n", proxyName, targetType, rt("ProxyDependencies"), proxyName)
-	fmt.Fprintf(&b, "\treturn &%s{target: target, transaction: deps.Transactions, tracer: deps.Tracer, metrics: deps.Metrics, authorizer: deps.Authorizer, logger: deps.Logger, audit: deps.Audit, breakers: deps.Breakers, rateLimiters: deps.RateLimiters, bulkheads: deps.Bulkheads}\n", proxyName)
+	fmt.Fprintf(&b, "\treturn &%s{%s}\n", proxyName, ctorFields)
 	b.WriteString("}\n\n")
 
 	// Methods, in the interface's (name-sorted) order for deterministic output.
@@ -107,6 +118,18 @@ func renderInterceptedMethod(proxyName, targetTypeName, name string, sig *types.
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "func (p *%s) %s(%s) %s {\n", proxyName, name, params, results)
+
+	// Caching short-circuits before every other interceptor: on a hit the cached
+	// value is returned without invoking the target (§32).
+	if m.Cacheable != nil {
+		fmt.Fprintf(&b, "\tcacheKey := %s\n", renderCacheKeyExpr(m.Cacheable.Parts, argNames, im))
+		fmt.Fprintf(&b, "\tif data, ok, _ := p.cache.Get(%s, cacheKey); ok {\n", ctxVar)
+		fmt.Fprintf(&b, "\t\tif %s(data, &%s) == nil {\n", im.qualify("encoding/json", "json", "Unmarshal"), valueNames[0])
+		b.WriteString("\t\t\treturn\n\t\t}\n\t}\n")
+	}
+	if m.CacheEvict != nil {
+		fmt.Fprintf(&b, "\tcacheEvictKey := %s\n", renderCacheKeyExpr(m.CacheEvict.Parts, argNames, im))
+	}
 
 	// Timeout is the outermost interceptor: it bounds the whole call (§25).
 	if m.Timeout > 0 {
@@ -155,8 +178,39 @@ func renderInterceptedMethod(proxyName, targetTypeName, name string, sig *types.
 		fmt.Fprintf(&b, "\tp.metrics.RecordSuccess(%s)\n", strconv.Quote(metricName))
 	}
 
+	// On success, store the result (@Cacheable) and invalidate (@CacheEvict).
+	if m.Cacheable != nil {
+		b.WriteString("\tif err == nil {\n")
+		fmt.Fprintf(&b, "\t\tif data, mErr := %s(%s); mErr == nil {\n", im.qualify("encoding/json", "json", "Marshal"), valueNames[0])
+		fmt.Fprintf(&b, "\t\t\t_ = p.cache.Set(%s, cacheKey, data, %d)\n", ctxVar, int64(m.Cacheable.TTL))
+		b.WriteString("\t\t}\n\t}\n")
+	}
+	if m.CacheEvict != nil {
+		fmt.Fprintf(&b, "\tif err == nil {\n\t\t_ = p.cache.Delete(%s, cacheEvictKey)\n\t}\n", ctxVar)
+	}
+
 	b.WriteString("\treturn\n}\n")
 	return b.String()
+}
+
+// renderCacheKeyExpr builds the Go expression for a resolved cache key: literals
+// and fmt.Sprint(arg) segments concatenated. Argument references use the proxy
+// method's own parameter names, so it is independent of the annotated method's.
+func renderCacheKeyExpr(parts []model.CacheKeyPart, argNames []string, im *imports) string {
+	segs := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p.IsArg {
+			if p.ArgIndex >= 0 && p.ArgIndex < len(argNames) {
+				segs = append(segs, fmt.Sprintf("%s(%s)", im.qualify("fmt", "fmt", "Sprint"), argNames[p.ArgIndex]))
+			}
+			continue
+		}
+		segs = append(segs, strconv.Quote(p.Literal))
+	}
+	if len(segs) == 0 {
+		return `""`
+	}
+	return strings.Join(segs, " + ")
 }
 
 // renderCore emits the statement that assigns err from the (optionally retried,

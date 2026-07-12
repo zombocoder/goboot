@@ -9,6 +9,7 @@ use (
 	./adapters/otel
 	./adapters/pgx
 	./adapters/oidc
+	./adapters/redis
 	./adapters/prometheus
 	./plugins/lint
 	./plugins/openapi

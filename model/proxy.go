@@ -1,6 +1,38 @@
 package model
 
-import "time"
+import (
+	"regexp"
+	"time"
+)
+
+// cacheKeyPlaceholder matches a #{name} placeholder in a cache key template.
+var cacheKeyPlaceholder = regexp.MustCompile(`#\{([a-zA-Z_][a-zA-Z0-9_]*)\}`)
+
+// CacheKeySegment is one piece of a parsed cache key template: either a literal
+// string (Param == "") or a #{param} placeholder (Literal == "").
+type CacheKeySegment struct {
+	Literal string
+	Param   string
+}
+
+// ParseCacheKey splits a key template into ordered literal and placeholder
+// segments, so the compiler can validate placeholder names and the generator
+// can render the key expression.
+func ParseCacheKey(key string) []CacheKeySegment {
+	var segs []CacheKeySegment
+	last := 0
+	for _, m := range cacheKeyPlaceholder.FindAllStringSubmatchIndex(key, -1) {
+		if m[0] > last {
+			segs = append(segs, CacheKeySegment{Literal: key[last:m[0]]})
+		}
+		segs = append(segs, CacheKeySegment{Param: key[m[2]:m[3]]})
+		last = m[1]
+	}
+	if last < len(key) {
+		segs = append(segs, CacheKeySegment{Literal: key[last:]})
+	}
+	return segs
+}
 
 // InterceptedMethod records the interception a single service method requests
 // via @Traced, @Timed, and @Transactional (§24, §25). The generator wraps the
@@ -43,6 +75,34 @@ type InterceptedMethod struct {
 	CircuitBreaker *CircuitBreakerSpec
 	RateLimit      *RateLimitSpec
 	Bulkhead       *BulkheadSpec
+
+	// Cacheable, when non-nil, wraps the call in read-through caching: a hit
+	// returns the cached result without invoking the target (§32). Requires the
+	// method to return exactly one value and an error.
+	Cacheable *CacheSpec
+	// CacheEvict, when non-nil, deletes the keyed cache entry after the method
+	// succeeds (§32).
+	CacheEvict *CacheSpec
+}
+
+// CacheSpec mirrors @Cacheable / @CacheEvict for the generator. Key is the raw
+// template (for diagnostics); Parts is its resolution into literals and argument
+// references, so the generator can render a key expression independent of the
+// interface method's parameter names. TTL applies to @Cacheable only (0 means no
+// expiry).
+type CacheSpec struct {
+	Key   string
+	TTL   time.Duration
+	Parts []CacheKeyPart
+}
+
+// CacheKeyPart is one piece of a resolved cache key: a literal string, or a
+// reference to a method argument by its index in the parameter list (the leading
+// context parameter is index 0, so argument references are >= 1).
+type CacheKeyPart struct {
+	Literal  string
+	ArgIndex int
+	IsArg    bool
 }
 
 // CircuitBreakerSpec mirrors @CircuitBreaker (§36.3). Zero fields let the
@@ -106,5 +166,6 @@ type TxOptions struct {
 func (m InterceptedMethod) Intercepts() bool {
 	return m.Traced || m.Timed || m.Transactional || m.Timeout > 0 || m.Retry != nil ||
 		m.Authorize != nil || m.Logged || m.Audit != nil ||
-		m.CircuitBreaker != nil || m.RateLimit != nil || m.Bulkhead != nil
+		m.CircuitBreaker != nil || m.RateLimit != nil || m.Bulkhead != nil ||
+		m.Cacheable != nil || m.CacheEvict != nil
 }

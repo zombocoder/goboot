@@ -29,7 +29,7 @@ const (
 )
 
 // interceptAnnotations are the method annotations that trigger proxying.
-var interceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry", "Authorize", "RolesAllowed", "Logged", "Audit", "CircuitBreaker", "RateLimit", "Bulkhead"}
+var interceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry", "Authorize", "RolesAllowed", "Logged", "Audit", "CircuitBreaker", "RateLimit", "Bulkhead", "Cacheable", "CacheEvict"}
 
 // nonRouteInterceptAnnotations is interceptAnnotations without the route-level
 // authorization annotations, used for controllers where @Authorize /
@@ -265,7 +265,64 @@ func (a *analysis) interceptedMethod(decl *Declaration) (model.InterceptedMethod
 		}
 		m.Bulkhead = spec
 	}
+	if ann, ok := decl.Find("Cacheable"); ok {
+		// @Cacheable caches the method's single return value, so the method must
+		// return exactly one value and an error.
+		if results.Len() != 2 {
+			a.diags = append(a.diags, diagErr(CodeInvalidInterceptedMethod, decl.Pos,
+				"@Cacheable method %s must return exactly one value and an error", decl.Name))
+		} else {
+			spec := &model.CacheSpec{}
+			if s, ok := stringArgValue(ann, "key"); ok {
+				spec.Key = s
+			}
+			if d, ok := durationArg(ann, "ttl", 0); ok {
+				spec.TTL = d
+			}
+			parts, diags := resolveCacheKey(spec.Key, params, decl)
+			a.diags = append(a.diags, diags...)
+			spec.Parts = parts
+			m.Cacheable = spec
+		}
+	}
+	if ann, ok := decl.Find("CacheEvict"); ok {
+		spec := &model.CacheSpec{}
+		if s, ok := stringArgValue(ann, "key"); ok {
+			spec.Key = s
+		}
+		parts, diags := resolveCacheKey(spec.Key, params, decl)
+		a.diags = append(a.diags, diags...)
+		spec.Parts = parts
+		m.CacheEvict = spec
+	}
 	return m, true
+}
+
+// resolveCacheKey turns a key template into literal/argument parts, resolving
+// each #{param} placeholder to its parameter index (so the generator is
+// independent of the interface method's parameter names). It reports each
+// placeholder that does not name a method parameter.
+func resolveCacheKey(key string, params *types.Tuple, decl *Declaration) ([]model.CacheKeyPart, []*annotation.Diagnostic) {
+	index := make(map[string]int, params.Len())
+	for i := 1; i < params.Len(); i++ {
+		index[params.At(i).Name()] = i
+	}
+	var parts []model.CacheKeyPart
+	var diags []*annotation.Diagnostic
+	for _, seg := range model.ParseCacheKey(key) {
+		if seg.Param == "" {
+			parts = append(parts, model.CacheKeyPart{Literal: seg.Literal})
+			continue
+		}
+		i, ok := index[seg.Param]
+		if !ok {
+			diags = append(diags, diagErr(CodeInvalidInterceptedMethod, decl.Pos,
+				"cache key of %s references unknown parameter %q", decl.Name, seg.Param))
+			continue
+		}
+		parts = append(parts, model.CacheKeyPart{ArgIndex: i, IsArg: true})
+	}
+	return parts, diags
 }
 
 // authorizeSpec reads @Authorize/@RolesAllowed into an AuthorizeSpec, or nil.

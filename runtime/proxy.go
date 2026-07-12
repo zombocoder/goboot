@@ -53,6 +53,7 @@ type ProxyDependencies struct {
 	Breakers     CircuitBreakerProvider
 	RateLimiters RateLimiterProvider
 	Bulkheads    BulkheadProvider
+	Cache        Cache
 }
 
 // DefaultProxyDependencies returns proxy dependencies wired with the built-in
@@ -68,5 +69,6 @@ func DefaultProxyDependencies() ProxyDependencies {
 		Breakers:     NewCircuitBreakerRegistry(),
 		RateLimiters: NewRateLimiterRegistry(),
 		Bulkheads:    NewBulkheadRegistry(),
+		Cache:        NewMemoryCache(),
 	}
 }
