@@ -31,6 +31,11 @@ const (
 // interceptAnnotations are the method annotations that trigger proxying.
 var interceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry", "Authorize", "RolesAllowed", "Logged", "Audit", "CircuitBreaker", "RateLimit", "Bulkhead"}
 
+// nonRouteInterceptAnnotations is interceptAnnotations without the route-level
+// authorization annotations, used for controllers where @Authorize /
+// @RolesAllowed are enforced at the HTTP route rather than by a service proxy.
+var nonRouteInterceptAnnotations = []string{"Transactional", "Traced", "Timed", "Timeout", "Retry", "Logged", "Audit", "CircuitBreaker", "RateLimit", "Bulkhead"}
+
 // resolveInterface looks up the interface named by @Service(implements=...) in
 // the service's package and returns its type.
 func resolveInterface(tn *types.TypeName, name string, pos token.Position) (types.Type, *annotation.Diagnostic) {
@@ -63,11 +68,18 @@ func (a *analysis) discoverProxies(scan *ScanResult, app *model.Application) {
 		if decl.Target != annotation.TargetMethod || decl.Recv == nil || decl.Func == nil {
 			continue
 		}
-		if !hasAny(decl, interceptAnnotations) {
-			continue
-		}
 		comp := byType[typeKey(decl.PkgPath, decl.Recv.Name())]
 		if comp == nil {
+			continue
+		}
+		// Controllers are the HTTP boundary, not proxied services: their
+		// @Authorize / @RolesAllowed are enforced at the route (see routes.go),
+		// so those annotations never trigger proxy synthesis on a controller.
+		triggers := interceptAnnotations
+		if comp.Kind == model.ComponentController {
+			triggers = nonRouteInterceptAnnotations
+		}
+		if !hasAny(decl, triggers) {
 			continue
 		}
 		method, ok := a.interceptedMethod(decl)

@@ -226,12 +226,18 @@ func TestErrorfAndUnwrap(t *testing.T) {
 
 func TestDefaultDependencies(t *testing.T) {
 	deps := DefaultHTTPHandlerDependencies()
-	if deps.Binder == nil || deps.Validator == nil || deps.Authorizer == nil ||
-		deps.ErrorHandler == nil || deps.ResponseWriter == nil || deps.Observer == nil {
+	if deps.Binder == nil || deps.Validator == nil || deps.Authenticator == nil ||
+		deps.Authorizer == nil || deps.ErrorHandler == nil || deps.ResponseWriter == nil ||
+		deps.Observer == nil {
 		t.Fatal("default dependencies must all be non-nil")
 	}
+	// The default authorizer permits a route with no role restriction.
 	if err := deps.Authorizer.Authorize(context.Background(), AuthorizationRequest{}); err != nil {
-		t.Errorf("permit-all authorizer should allow: %v", err)
+		t.Errorf("default authorizer should allow an unrestricted route: %v", err)
+	}
+	// A secured route with no principal is denied (secure by default).
+	if err := deps.Authorizer.Authorize(context.Background(), AuthorizationRequest{Roles: []string{"user"}}); StatusOf(err) != 401 {
+		t.Errorf("default authorizer should 401 a secured route without a principal, got %v", err)
 	}
 	ctx, obs := deps.Observer.Begin(context.Background(), HTTPRequestOperation{})
 	obs.End(200, nil)

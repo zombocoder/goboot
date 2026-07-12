@@ -11,6 +11,7 @@ import (
 type HTTPHandlerDependencies struct {
 	Binder         Binder
 	Validator      Validator
+	Authenticator  Authenticator
 	Authorizer     Authorizer
 	ErrorHandler   ErrorHandler
 	ResponseWriter ResponseWriter
@@ -22,9 +23,13 @@ type HTTPHandlerDependencies struct {
 func DefaultHTTPHandlerDependencies() HTTPHandlerDependencies {
 	rw := JSONResponseWriter{}
 	return HTTPHandlerDependencies{
-		Binder:         DefaultBinder{},
-		Validator:      NoopValidator{},
-		Authorizer:     PermitAllAuthorizer{},
+		Binder:        DefaultBinder{},
+		Validator:     NoopValidator{},
+		Authenticator: AnonymousAuthenticator{},
+		// Secure by default: an @Authorize route enforces immediately. Until an
+		// authentication adapter is configured, AnonymousAuthenticator yields no
+		// principal, so secured routes return 401 rather than silently allowing.
+		Authorizer:     RoleAuthorizer{},
 		ErrorHandler:   DefaultErrorHandler{Writer: rw},
 		ResponseWriter: rw,
 		Observer:       NoopObserver{},
