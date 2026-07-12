@@ -12,4 +12,5 @@ use (
 	./plugins/lint
 	./plugins/openapi
 	./plugins/oracle
+	./plugins/validate
 )

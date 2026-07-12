@@ -65,7 +65,11 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 		removeGeneratedFile(filepath.Join(absOut, generatedFileName))
 	}
 
-	res, host, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, conditionOptions(*profile, *property), stderr)
+	// Tolerate the composition root importing the wiring we are about to
+	// generate: ignore load errors that stem only from the output package not
+	// existing yet.
+	genPkg := generatedPackagePath(*dir, outputDir)
+	res, host, errCount := analyzeCommon(*dir, patterns, *tags, strictMode, conditionOptions(*profile, *property), genPkg, stderr)
 	if res == nil {
 		return 1
 	}
@@ -87,7 +91,9 @@ func cmdGenerate(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	// Plugin generators contribute additional artifacts.
+	// Plugin generators contribute additional artifacts. Expose the output
+	// package so a plugin emitting Go source writes a matching package clause.
+	res.App.Package = pkgName
 	pluginFiles, gdiags := host.Generate(res.App)
 	if n := printDiagnostics(stderr, gdiags, strictMode); n > 0 {
 		fmt.Fprintf(stderr, "goboot: %d plugin generation error(s); no files written\n", n)

@@ -122,6 +122,7 @@ func (s *scanner) scanFields(pkg *packages.Package, fields *ast.FieldList, targe
 			switch target {
 			case annotation.TargetField:
 				decl.Field, _ = pkg.TypesInfo.Defs[name].(*types.Var)
+				decl.Recv = owner
 			case annotation.TargetMethod:
 				decl.Func, _ = pkg.TypesInfo.Defs[name].(*types.Func)
 				decl.Recv = owner

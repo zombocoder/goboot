@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/token"
 	"sort"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 
@@ -48,6 +49,13 @@ type Loader struct {
 	Env []string
 	// Tests includes test files and synthesized test variants in the load.
 	Tests bool
+	// IgnorePkgPath, when set, suppresses load errors that arise solely because
+	// this package is absent or empty — namely its own "invalid package name"/
+	// "no Go files" error and any in-scope package's failure to import it. The
+	// generate command sets it to the output package's import path so that a
+	// composition root importing the not-yet-generated wiring does not block the
+	// very generation that would create it (§40).
+	IgnorePkgPath string
 }
 
 // registry returns the effective registry.
@@ -91,7 +99,7 @@ func (l *Loader) Load(patterns ...string) (*ScanResult, error) {
 
 	scanner := newScanner(l.registry())
 	for _, pkg := range pkgs {
-		result.Diagnostics = append(result.Diagnostics, loadDiagnostics(pkg)...)
+		result.Diagnostics = append(result.Diagnostics, loadDiagnostics(pkg, l.IgnorePkgPath)...)
 		// Skip scanning packages that did not type-check, since declaration
 		// association relies on complete type information.
 		if pkg.Types == nil || pkg.TypesInfo == nil || len(pkg.Syntax) == 0 {
@@ -106,10 +114,14 @@ func (l *Loader) Load(patterns ...string) (*ScanResult, error) {
 }
 
 // loadDiagnostics converts go/packages load and type-check errors into
-// compiler diagnostics.
-func loadDiagnostics(pkg *packages.Package) []*annotation.Diagnostic {
+// compiler diagnostics, dropping those caused only by an absent/empty ignore
+// package (the not-yet-generated output; see Loader.IgnorePkgPath).
+func loadDiagnostics(pkg *packages.Package, ignore string) []*annotation.Diagnostic {
 	var diags []*annotation.Diagnostic
 	for _, e := range pkg.Errors {
+		if isNotYetGeneratedError(pkg.PkgPath, e.Msg, ignore) {
+			continue
+		}
 		diags = append(diags, &annotation.Diagnostic{
 			Severity: annotation.SeverityError,
 			Code:     CodeLoadError,
@@ -118,6 +130,24 @@ func loadDiagnostics(pkg *packages.Package) []*annotation.Diagnostic {
 		})
 	}
 	return diags
+}
+
+// isNotYetGeneratedError reports whether a load error is only an artifact of the
+// output package not existing yet: either the output package's own empty-dir
+// error, or an in-scope package failing to import it. Matching the import path
+// plus the characteristic phrasing keeps genuine errors that merely mention the
+// path from being swallowed.
+func isNotYetGeneratedError(pkgPath, msg, ignore string) bool {
+	if ignore == "" {
+		return false
+	}
+	if pkgPath == ignore {
+		return true // the output package itself: empty dir → invalid package name
+	}
+	return strings.Contains(msg, ignore) &&
+		(strings.Contains(msg, "could not import") ||
+			strings.Contains(msg, "invalid package name") ||
+			strings.Contains(msg, "no Go files"))
 }
 
 // parsePackagesPos parses the "file:line:col" position string that
