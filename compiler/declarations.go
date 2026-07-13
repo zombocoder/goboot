@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"go/types"
 	"sort"
 
 	"github.com/zombocoder/goboot/model"
@@ -19,12 +20,17 @@ func collectDeclarations(scan *ScanResult, app *model.Application) {
 		if decl.Recv != nil {
 			recv = decl.Recv.Name()
 		}
+		var sig *types.Signature
+		if decl.Func != nil {
+			sig, _ = decl.Func.Type().(*types.Signature)
+		}
 		app.Declarations = append(app.Declarations, model.AnnotatedDecl{
 			Package:     decl.PkgPath,
 			Name:        decl.Name,
 			Receiver:    recv,
 			Target:      decl.Target,
 			Annotations: decl.Annotations,
+			Signature:   sig,
 			Position:    decl.Pos,
 		})
 	}

@@ -12,6 +12,7 @@ use (
 	./adapters/redis
 	./adapters/mysql
 	./adapters/prometheus
+	./plugins/asyncapi
 	./plugins/lint
 	./plugins/metrics
 	./plugins/openapi

@@ -1,0 +1,86 @@
+{
+  "asyncapi": "3.0.0",
+  "channels": {
+    "orders_created": {
+      "address": "orders.created",
+      "messages": {
+        "OrderCreated": {
+          "name": "OrderCreated",
+          "payload": {
+            "$ref": "#/components/schemas/OrderCreated"
+          }
+        }
+      }
+    },
+    "orders_shipped": {
+      "address": "orders.shipped",
+      "messages": {
+        "OrderShipped": {
+          "name": "OrderShipped",
+          "payload": {
+            "$ref": "#/components/schemas/OrderShipped"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "OrderCreated": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "OrderShipped": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tracking": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "orders-events",
+    "version": "1.0.0"
+  },
+  "operations": {
+    "onOrderCreated": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/orders_created"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/orders_created/messages/OrderCreated"
+        }
+      ]
+    },
+    "shipOrder": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/orders_shipped"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/orders_shipped/messages/OrderShipped"
+        }
+      ],
+      "summary": "Emitted when an order ships"
+    }
+  }
+}
