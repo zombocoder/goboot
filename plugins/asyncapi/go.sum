@@ -1,2 +1,10 @@
-github.com/zombocoder/goboot v0.1.5 h1:xD0HqG6gxboKKcBzr8wnhLNwHMtnJy5eEm7oivLl+gM=
-github.com/zombocoder/goboot v0.1.5/go.mod h1:TpVYjNVPcZKbxHLTfKfOW6U7bXhwcuXRfL37PYfate0=
+github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+github.com/zombocoder/goboot v0.1.6 h1:g/0NPNBF41Q4k2wiOf/WIq1CHiJqW/lJD1xC4ju0WSg=
+github.com/zombocoder/goboot v0.1.6/go.mod h1:TpVYjNVPcZKbxHLTfKfOW6U7bXhwcuXRfL37PYfate0=
+golang.org/x/mod v0.38.0 h1:MECBjubtXD7yj4HrhIUcywNaGeNVUdfVnxmPajOk4yk=
+golang.org/x/mod v0.38.0/go.mod h1:V6Xz0pq8TQ3dGqVQ1FVHuelZpAL0uNhSkk9ogYP3c40=
+golang.org/x/sync v0.22.0 h1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=
+golang.org/x/sync v0.22.0/go.mod h1:9xrNwdLfx4jkKbNva9FpL6vEN7evnE43NNNJQ2LF3+0=
+golang.org/x/tools v0.48.0 h1:3+hClM1aLL5mjMKm5ovokw9epgRXPuu2tILgismM6RE=
+golang.org/x/tools v0.48.0/go.mod h1:08xX0orndb/F7jJxGDicx061tyd5pcMto75YMAXr6lk=
